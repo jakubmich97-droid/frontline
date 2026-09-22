@@ -102,9 +102,19 @@ ${game.regions
   .map((r) => {
     const color = r.owner < 0 ? "#64757b" : game.nations[r.owner].color,
       f = FACILITIES[r.facility];
-    return `<g class="region ${selected === r.id ? "selected" : ""} ${target === r.id ? "targeted" : ""}" role="button" tabindex="0" data-region="${r.id}" aria-label="${r.name}, ${f.name}, úroveň ${r.level}, ${r.owner < 0 ? "neutrální" : game.nations[r.owner].name}" aria-pressed="${selected === r.id}"><polygon points="${r.polygon}" fill="${color}" fill-opacity="${r.owner === game.player ? ".34" : r.owner < 0 ? ".13" : ".25"}" stroke="${color}" stroke-opacity=".65"/><text x="${r.x}" y="${r.y - 24}" class="facility-symbol" fill="${color}">${f.symbol}</text><text x="${r.x}" y="${r.y - 2}" class="region-name">${r.name}</text><rect x="${r.x - 44}" y="${r.y + 8}" width="88" height="24" rx="5" fill="#0b141b" fill-opacity=".8"/><text x="${r.x}" y="${r.y + 24}" class="facility-label" fill="${color}">${f.short} · ${r.level}</text>${r.upgrade ? `<text x="${r.x}" y="${r.y + 48}" class="facility-label">↑ ${r.upgrade.remaining} s</text>` : ""}</g>`;
+    return `<g class="region ${selected === r.id ? "selected" : ""} ${target === r.id ? "targeted" : ""}" role="button" tabindex="0" data-region="${r.id}" aria-label="${r.name}, ${f.name}, úroveň ${r.level}, ${r.owner < 0 ? "neutrální" : game.nations[r.owner].name}" aria-pressed="${selected === r.id}"><polygon points="${r.polygon}" fill="${color}" fill-opacity="${r.owner === game.player ? ".44" : r.owner < 0 ? ".11" : ".38"}" stroke="${color}" stroke-opacity="${r.owner < 0 ? ".45" : ".13"}"/><text x="${r.x}" y="${r.y - 20}" class="facility-symbol" fill="${color}">${f.symbol}</text><text x="${r.x}" y="${r.y + 1}" class="region-name">${r.name}</text><text x="${r.x}" y="${r.y + 21}" class="facility-label" fill="${color}">${f.short} · ${r.level}</text>${r.upgrade ? `<text x="${r.x}" y="${r.y + 38}" class="facility-label">↑ ${r.upgrade.remaining} s</text>` : ""}</g>`;
   })
   .join("")}
+${game.regions.map((r) => {
+  const pts = r.polygon.split(" ").map((p) => p.split(",").map(Number)),
+    edges = [[0, 1, r.id - 6], [1, 2, r.id + 1], [2, 3, r.id + 6], [3, 0, r.id - 1]];
+  return edges.map(([a, b, neighbor]) => {
+    const same = r.neighbors.includes(neighbor) && game.regions[neighbor]?.owner === r.owner;
+    if (same) return "";
+    const color = r.owner < 0 ? "#667982" : game.nations[r.owner].color;
+    return `<path class="state-border" d="M${pts[a][0]} ${pts[a][1]}L${pts[b][0]} ${pts[b][1]}" stroke="${color}"/>`;
+  }).join("");
+}).join("")}
 ${game.operations
   .map((o) => {
     const a = game.regions[o.from],
@@ -113,7 +123,14 @@ ${game.operations
       p = o.phase === "march" ? o.progress : 0.85;
     return `<g class="operation" pointer-events="none"><path d="M${a.x} ${a.y + 34} Q${(a.x + b.x) / 2 + 15} ${(a.y + b.y) / 2 - 22} ${b.x} ${b.y}" stroke="${c}" stroke-width="3" fill="none" marker-end="url(#arrow)" class="march-line"/><circle cx="${a.x + (b.x - a.x) * p}" cy="${a.y + (b.y - a.y) * p}" r="5" fill="${c}"/>${o.phase === "battle" ? `<circle class="battle-pulse" cx="${b.x}" cy="${b.y}" r="38" fill="none" stroke="#f4c073" stroke-width="2"/><rect x="${b.x - 34}" y="${b.y + 39}" width="68" height="5" rx="2" fill="#10191f"/><rect x="${b.x - 34}" y="${b.y + 39}" width="${68 * o.progress}" height="5" fill="${c}"/>` : ""}</g>`;
   })
-  .join("")}</svg>`;
+  .join("")}
+${game.nations.map((nation) => {
+  const rs = owned(game, nation.id);
+  if (!rs.length) return "";
+  const anchor = rs.find((r) => r.id === nation.capital) || rs[Math.floor(rs.length / 2)],
+    a = available(game, nation.id);
+  return `<g class="map-army" pointer-events="none"><rect x="${anchor.x - 42}" y="${anchor.y + 30}" width="84" height="24" rx="12" fill="#071017" stroke="${nation.color}"/><text x="${anchor.x}" y="${anchor.y + 46}" fill="${nation.color}">⚔ ${num(a.infantry)}${a.tanks >= 1 ? `  ▰ ${num(a.tanks)}` : ""}</text></g>`;
+}).join("")}</svg>`;
 }
 function armyPanel() {
   const n = game.nations[game.player],
@@ -121,12 +138,10 @@ function armyPanel() {
     free = available(game, game.player),
     used = deployed(game, game.player),
     value = armyDraft ?? n.armyTarget;
-  return `<section class="national-army"><div class="army-title"><div><span class="eyebrow">JEDNA ARMÁDA PRO CELÝ STÁT</span><h2>Národní armáda</h2></div><div class="army-total"><strong>${num(n.army.infantry)}</strong> pěchoty <span>+</span> <strong>${num(n.army.tanks)}</strong> tanků</div></div>
+  return `<section class="national-army"><div class="army-title"><div><span class="eyebrow">NÁRODNÍ ARMÁDA</span><h2><strong>${num(n.army.infantry)}</strong> pěchoty · <strong>${num(n.army.tanks)}</strong> tanků</h2></div><div class="army-total">Volní <strong>${num(free.infantry)}</strong> · nasazení <strong>${num(used.infantry)}</strong></div></div>
 <div class="army-grid"><div><label class="range-label" for="army-size">Cílová velikost <strong id="army-target-label">${value} % · ${num(e.target)} osob</strong></label><input type="range" id="army-size" aria-label="Cílová velikost armády" min="0" max="100" step="5" value="${value}">
-<p class="muted small">Limit z populace: <b>${num(e.capacity)} osob</b> (4 % obyvatel). Cíl zahrnuje pěchotu i 4 členy osádky na tank.</p>
-<div class="mobilization"><span>Volní: ${num(free.infantry)} pěchoty / ${num(free.tanks)} tanků</span><span>V operacích: ${num(used.infantry)} / ${num(used.tanks)}</span></div>
-<p class="muted small">${n.army.infantry + 1 < e.desiredInfantry ? "Probíhá automatický nábor." : n.army.infantry > e.desiredInfantry + 1 ? "Probíhá demobilizace volné pěchoty." : "Požadovaná velikost dosažena."} Nábor stojí 3 ¤ za vojáka; nejvýše 6/s. Tanky se posuvníkem nevyřazují.</p></div>
-<div class="army-budget"><div><span>Žold a údržba</span><b>${decimal(e.salary)} ¤/s</b></div><div><span>Dovoz ropy nyní</span><b>${decimal(e.oilCost)} ¤/s</b></div><div class="budget-total"><span>Provoz armády nyní</span><b>${decimal(e.upkeep)} ¤/s</b></div><div><span>Provoz při cílové velikosti*</span><b id="planned-cost">${decimal(e.planned.steadyCost)} ¤/s</b></div><p class="muted small">*Po vyčerpání zásob ropy, bez jednorázového náboru. Volné jednotky automaticky brání všechna území.</p></div></div></section>`;
+<div class="mobilization"><span>Limit ${num(e.capacity)}</span><span>${n.army.infantry + 1 < e.desiredInfantry ? "Probíhá nábor" : n.army.infantry > e.desiredInfantry + 1 ? "Demobilizace" : "Cíl dosažen"}</span></div></div>
+<div class="army-budget"><div><span>Provoz nyní</span><b>${decimal(e.upkeep)} ¤/s</b></div><div><span>Provoz při cíli</span><b id="planned-cost">${decimal(e.planned.steadyCost)} ¤/s</b></div><label class="range-label compact" for="bot-aggression">Agresivita botů <strong id="bot-aggression-label">${game.botAggression} %</strong></label><input type="range" id="bot-aggression" aria-label="Agresivita botů" min="0" max="100" step="10" value="${game.botAggression}"></div></div></section>`;
 }
 function facilityYield(r: Game["regions"][number]) {
   if (r.facility === "city")
@@ -183,7 +198,7 @@ function dialog() {
   if (modal === "new")
     return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><h2 id="dialog-title">Nová kampaň</h2><p class="muted">Nahradí aktuální partii. Původní záloha verze 0.1 zůstane zachovaná.</p><div class="faction-choices">${FACTIONS.map((n, id) => button(n.name, "new:" + id, false, "faction-choice")).join("")}</div>${button("Zpět do hry", "close", false, "wide")}</section></div>`;
   if (modal === "help")
-    return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><h2 id="dialog-title">Jedna armáda, jeden rozpočet</h2><ol><li>Posuvník určuje cílový počet osob podle populace. Pěchota se postupně nabírá za 3 ¤ na vojáka, nebo propouští bez náhrady.</li><li>Města dodávají populaci. Doly těží železo a uhlí, ropná pole palivo; přístavy vydělávají a zlevňují dovoz. Vše lze vylepšit na úroveň 5.</li><li>Tanky vyrábíš ručně ze železa a uhlí. Posuvník tanky nemaže; jejich osádky i provoz stojí zdroje i při cíli 0 %.</li><li>Armáda platí žold a spotřebovává ropu. Nejprve využije těžbu a zásoby, chybějící ropu automaticky dokoupí. Prázdná pokladna při nedostatku příjmů znamená ztráty.</li><li>Klikni na sousední cizí území a vyčleň 30, 60 nebo 90 % volné armády. Volný zbytek brání stát; při více napadených územích se rozdělí mezi fronty.</li><li>Po dobytí se výprava uvolní. Vyhrává obsazení celé mapy; ztráta všech území znamená porážku.</li></ol><p class="muted">Mezerník: pauza · 1/2/4: rychlost. Skrytí záložky hru pozastaví. Ukládání je místní, každých 15 herních sekund.</p>${button("Rozumím", "close", false, "primary wide")}</section></div>`;
+    return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><h2 id="dialog-title">Jedna armáda, jeden rozpočet</h2><ol><li>Posuvník určuje cílový počet osob podle populace. Pěchota se postupně nabírá za 3 ¤ na vojáka, nebo propouští bez náhrady.</li><li>Města dodávají populaci. Doly těží železo a uhlí, ropná pole palivo; přístavy vydělávají a zlevňují dovoz. Vše lze vylepšit na úroveň 5.</li><li>Tanky vyrábíš ručně ze železa a uhlí. Posuvník tanky nemaže; jejich osádky i provoz stojí zdroje i při cíli 0 %.</li><li>Armáda platí žold a spotřebovává ropu. Nejprve využije těžbu a zásoby, chybějící ropu automaticky dokoupí.</li><li>Klikni na sousední cizí území a vyčleň 30, 60 nebo 90 % volné armády. Číslo armády každého státu je vidět přímo na mapě.</li><li>Agresivita botů řídí jejich ochotu riskovat. Po zabrání neutrálních provincií pokračují válkou mezi státy; při 0 % pouze budují.</li></ol><p class="muted">Mezerník: pauza · 1/2/4: rychlost. Ukládání je místní, každých 15 herních sekund.</p>${button("Rozumím", "close", false, "primary wide")}</section></div>`;
   return "";
 }
 function render() {
@@ -195,11 +210,11 @@ function render() {
     e = economy(game, game.player),
     ended = game.winner !== null || game.defeated.includes(game.player);
   if (ended) paused = true;
-  app.innerHTML = `<header><a class="brand" href="./" aria-label="Frontline"><span class="brand-mark">F</span>FRONTLINE<span class="version">NÁRODNÍ ARMÁDA · 0.2</span></a><div class="header-actions"><span class="save-status">${saveStatus}</span>${button("Uložit", "save")}${button("?", "help", false, "help-button")}${button("Nová hra", "new")}</div></header>
+  app.innerHTML = `<header><a class="brand" href="./" aria-label="Frontline"><span class="brand-mark">F</span>FRONTLINE<span class="version">STÁTNÍ HRANICE · 0.3</span></a><div class="header-actions"><span class="save-status">${saveStatus}</span>${button("Uložit", "save")}${button("?", "help", false, "help-button")}${button("Nová hra", "new")}</div></header>
 <div class="resource-bar"><div class="your-nation"><i style="background:${n.color}"></i><div><span class="eyebrow">TVÁ FRAKCE</span><strong>${n.name}</strong></div></div><div class="resource"><span>POKLADNA</span><strong>${num(n.money)} ¤</strong></div><div class="resource"><span>BILANCE / S*</span><strong class="${e.net >= 0 ? "positive" : "negative"}">${e.net >= 0 ? "+" : ""}${decimal(e.net)} ¤</strong></div><div class="resource"><span>POPULACE</span><strong>${num(e.population)}</strong></div><div class="resource"><span>ÚZEMÍ</span><strong>${owned(game, game.player).length}<small> / 24</small></strong></div><div class="time-controls"><span class="game-clock">${clock(game.time)}</span>${button(paused ? "▶ Spustit" : "Ⅱ Pauza", "pause", ended, "play-button")}${[1, 2, 4].map((s) => button(s + "×", "speed:" + s, false, speed === s ? "active" : "")).join("")}</div></div>
 <div class="materials-bar">${(["iron", "coal", "oil"] as const).map((k) => `<div><span>${FACILITIES[k].name === "Ropné pole" ? "ROPA" : k === "iron" ? "ŽELEZO" : "UHLÍ"}</span><strong>${num(n.resources[k])}</strong><small>těžba +${decimal(e.production[k])}/s</small></div>`).join("")}<div class="fuel-summary"><span>SPOTŘEBA ROPY</span><strong>${decimal(e.oilUse)}/s</strong><small>${e.importNow > 0 ? "Dovoz " + decimal(e.importNow) + "/s za " + decimal(e.oilPrice) + " ¤/jedn." : e.oilUse > e.production.oil ? "Čerpání zásob; poté placený dovoz" : "Pokryto vlastní těžbou"}</small></div><p>*Bilance před jednorázovým náborem a výstavbou.</p></div>
 <main><section class="map-column">${armyPanel()}<div class="map-heading"><div><span class="eyebrow">OPERAČNÍ MAPA</span><h1>Jantarové pobřeží</h1></div><span class="live-state ${paused ? "is-paused" : ""}">${ended ? "KONEC PARTIE" : paused ? "POZASTAVENO" : "SIMULACE BĚŽÍ"}</span></div>
-<div class="map-surface ${paused ? "paused" : ""}">${mapMarkup()}${ended ? `<div class="result-banner"><h2>${game.winner === game.player ? "Vítězství" : "Tvá frakce byla poražena"}</h2>${button("Nová kampaň", "new", false, "primary")}</div>` : ""}</div><div class="map-footer"><span>▥ Město · Fe Železo · C Uhlí · ◈ Ropa · ⚓ Přístav</span><span>Budova / úroveň</span></div><div class="notice" role="status">${esc(notice)}</div>
+<div class="map-surface ${paused ? "paused" : ""}">${mapMarkup()}<div class="map-score"><b>STÁTY</b>${game.nations.filter((f) => owned(game, f.id).length).map((f) => `<span><i style="background:${f.color}"></i>${owned(game, f.id).length} úz. · ⚔ ${num(f.army.infantry)}</span>`).join("")}</div>${ended ? `<div class="result-banner"><h2>${game.winner === game.player ? "Vítězství" : "Tvá frakce byla poražena"}</h2>${button("Nová kampaň", "new", false, "primary")}</div>` : ""}</div><div class="map-footer"><span>▥ Město · Fe Železo · C Uhlí · ◈ Ropa · ⚓ Přístav</span><span>Číslo na mapě = volná armáda</span></div><div class="notice" role="status">${esc(notice)}</div>
 <div class="bottom-grid"><section><div class="section-title">ROVNOVÁHA SIL <span>ÚZEMÍ / ARMÁDA</span></div>${game.nations.map((f) => `<div class="faction-row"><i style="background:${f.color}"></i><span>${f.name}</span><b>${owned(game, f.id).length}</b><small>${num(f.army.infantry)} / ${num(f.army.tanks)}</small></div>`).join("")}</section><section><div class="section-title">HLÁŠENÍ Z FRONTY</div><div class="events">${game.log
     .slice(0, 10)
     .map(
@@ -308,6 +323,9 @@ app.addEventListener("input", (ev) => {
       armyDraft + " % · " + num(preview.target) + " osob";
     document.getElementById("planned-cost")!.textContent =
       decimal(preview.planned.steadyCost) + " ¤/s";
+  } else if (el.id === "bot-aggression") {
+    document.getElementById("bot-aggression-label")!.textContent =
+      el.value + " %";
   }
 });
 app.addEventListener("change", (ev) => {
@@ -316,6 +334,8 @@ app.addEventListener("change", (ev) => {
     dragging = false;
     armyDraft = null;
     send({ type: "armyTarget", percent: Number(el.value) });
+  } else if (el.id === "bot-aggression") {
+    send({ type: "botAggression", percent: Number(el.value) });
   }
 });
 document.addEventListener("keydown", (ev) => {
