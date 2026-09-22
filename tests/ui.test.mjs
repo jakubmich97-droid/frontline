@@ -58,6 +58,9 @@ test("UI: select target, issue attack, simulate, save and reload", () => {
   assert.equal(ui.find('[data-action="deploy"]').disabled, false);
   ui.click('[data-action="deploy"]');
   assert.equal(ui.w.document.querySelectorAll(".operation").length, 1);
+  ui.click('[data-action="tab:operations"]');
+  ui.click('[data-action^="reinforce:"]');
+  assert.match(ui.find(".operation-card").textContent, /Posily|pěchoty/);
   ui.click('[data-action="pause"]');
   ui.advance(12);
   assert.match(ui.find(".game-clock").textContent, /00:1/);
@@ -101,6 +104,8 @@ test("UI: upgrade, research, help, new faction and army slider", () => {
   assert.match(ui.find("#bot-aggression-label").textContent, /80 %/);
   ui.click('[data-action="tab:trade"]');
   assert.equal(ui.w.document.querySelectorAll(".market-card").length, 4);
+  ui.click('[data-action="auto:buy:grain"]');
+  assert.match(ui.find('[data-action="auto:buy:grain"]').textContent, /ZAP/);
   ui.click('[data-action="trade:buy:grain"]');
   assert.match(ui.find(".panel-body").textContent, /Obilí/);
   ui.click('[data-region="1"]');
