@@ -27,7 +27,7 @@ function setup(saved) {
     callback = cb;
     return 1;
   };
-  if (saved) w.localStorage.setItem("frontline.save.v2", saved);
+  if (saved) w.localStorage.setItem("frontline.save.v3", saved);
   w.eval(bundle);
   const find = (selector) => {
     const el = w.document.querySelector(selector);
@@ -49,11 +49,11 @@ function setup(saved) {
 }
 test("UI: select target, issue attack, simulate, save and reload", () => {
   const ui = setup();
-  assert.equal(ui.w.document.querySelectorAll("[data-region]").length, 24);
+  assert.equal(ui.w.document.querySelectorAll("[data-region]").length, 35);
   assert.ok(ui.w.document.querySelectorAll(".state-border").length > 20);
   assert.equal(ui.w.document.querySelectorAll(".map-army").length, 6);
   assert.match(ui.find(".live-state").textContent, /POZASTAVENO/);
-  ui.click('[data-region="13"]');
+  ui.click('[data-region="16"]');
   assert.equal(ui.find('[data-action="deploy"]').disabled, false);
   ui.click('[data-action="deploy"]');
   assert.equal(ui.w.document.querySelectorAll(".operation").length, 1);
@@ -62,7 +62,7 @@ test("UI: select target, issue attack, simulate, save and reload", () => {
   assert.match(ui.find(".game-clock").textContent, /00:1/);
   ui.click('[data-action="pause"]');
   ui.click('[data-action="save"]');
-  const saved = ui.w.localStorage.getItem("frontline.save.v2");
+  const saved = ui.w.localStorage.getItem("frontline.save.v3");
   assert.ok(JSON.parse(saved).time >= 11);
   const resumed = setup(saved);
   assert.equal(
@@ -96,6 +96,10 @@ test("UI: upgrade, research, help, new faction and army slider", () => {
   aggression.dispatchEvent(new ui.w.Event("input", { bubbles: true }));
   aggression.dispatchEvent(new ui.w.Event("change", { bubbles: true }));
   assert.match(ui.find("#bot-aggression-label").textContent, /80 %/);
+  ui.click('[data-action="tab:trade"]');
+  assert.equal(ui.w.document.querySelectorAll(".market-card").length, 4);
+  ui.click('[data-action="trade:buy:grain"]');
+  assert.match(ui.find(".panel-body").textContent, /Obilí/);
   ui.click('[data-region="1"]');
   ui.click('[data-action="force:90"]');
   ui.click('[data-action="deploy"]');
