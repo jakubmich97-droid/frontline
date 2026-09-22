@@ -27,7 +27,7 @@ function setup(saved) {
     callback = cb;
     return 1;
   };
-  if (saved) w.localStorage.setItem("frontline.save.v1", saved);
+  if (saved) w.localStorage.setItem("frontline.save.v2", saved);
   w.eval(bundle);
   const find = (selector) => {
     const el = w.document.querySelector(selector);
@@ -60,7 +60,7 @@ test("UI: select target, issue attack, simulate, save and reload", () => {
   assert.match(ui.find(".game-clock").textContent, /00:1/);
   ui.click('[data-action="pause"]');
   ui.click('[data-action="save"]');
-  const saved = ui.w.localStorage.getItem("frontline.save.v1");
+  const saved = ui.w.localStorage.getItem("frontline.save.v2");
   assert.ok(JSON.parse(saved).time >= 11);
   const resumed = setup(saved);
   assert.equal(
@@ -71,10 +71,8 @@ test("UI: select target, issue attack, simulate, save and reload", () => {
   resumed.dom.window.close();
   ui.dom.window.close();
 });
-test("UI: production, research, help, new faction and range controls", () => {
+test("UI: upgrade, research, help, new faction and army slider", () => {
   const ui = setup();
-  ui.click('[data-action="build:infantry"]');
-  assert.ok(ui.find(".project"));
   ui.click('[data-action="tab:research"]');
   ui.click('[data-action="research:military"]');
   assert.match(ui.find(".panel-body").textContent, /Dokončení za 50 s/);
@@ -84,12 +82,15 @@ test("UI: production, research, help, new faction and range controls", () => {
   ui.click('[data-action="new"]');
   ui.click('[data-action="new:1"]');
   assert.match(ui.find(".your-nation").textContent, /Severní svaz/);
-  const range = ui.find("#force");
-  range.value = "90";
+  ui.click('[data-action="upgrade"]');
+  assert.ok(ui.find(".project"));
+  const range = ui.find("#army-size");
+  range.value = "70";
   range.dispatchEvent(new ui.w.Event("input", { bubbles: true }));
   range.dispatchEvent(new ui.w.Event("change", { bubbles: true }));
-  assert.match(ui.find(".range-label").textContent, /90 %/);
+  assert.match(ui.find(".range-label").textContent, /70 %/);
   ui.click('[data-region="1"]');
+  ui.click('[data-action="force:90"]');
   ui.click('[data-action="deploy"]');
   ui.click('[data-action="tab:operations"]');
   assert.match(ui.find(".panel-body").textContent, /Vlastní výprava/);
@@ -99,11 +100,9 @@ test("UI: production, research, help, new faction and range controls", () => {
 });
 test("UI: selecting source, keyboard and malformed save remain safe", () => {
   const ui = setup("{bad");
-  assert.match(ui.find(".notice").textContent, /neplatná/);
-  ui.click('[data-action="deselect"]');
+  assert.match(ui.find(".notice").textContent, /nelze načíst/);
   ui.click('[data-region="13"]');
-  assert.match(ui.find(".panel-heading").textContent, /Jantarová pole/);
-  ui.click('[data-action="home"]');
+  assert.match(ui.find(".panel-heading").textContent, /Jantarový důl/);
   ui.w.document.body.dispatchEvent(
     new ui.w.KeyboardEvent("keydown", {
       code: "Space",

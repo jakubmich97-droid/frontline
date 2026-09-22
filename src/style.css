@@ -1,3 +1,173 @@
+.national-army {
+  border: 1px solid #3b4c39;
+  background: #14221e;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.army-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+.army-title h2 {
+  margin: 7px 0 12px;
+  font-size: 22px;
+}
+.army-total {
+  font-size: 14px;
+  color: #bccbb5;
+}
+.army-total strong {
+  font:
+    22px ui-monospace,
+    monospace;
+  color: #d0efaa;
+}
+.army-total span {
+  margin: 0 8px;
+}
+.army-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 28px;
+}
+.army-budget {
+  border-left: 1px solid #354635;
+  padding-left: 22px;
+}
+.army-budget > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 8px 0;
+}
+.army-budget b {
+  white-space: nowrap;
+  color: #d0efaa;
+}
+.budget-total {
+  border-top: 1px solid #43573d;
+  padding-top: 9px;
+}
+.mobilization {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 12px;
+  color: #bfccbb;
+}
+.materials-bar {
+  display: flex;
+  gap: 30px;
+  padding: 16px 30px;
+  background: #101a23;
+  border-bottom: 1px solid #26343d;
+  flex-wrap: wrap;
+}
+.materials-bar > div {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 14px;
+  align-items: center;
+}
+.materials-bar span {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #95a8b2;
+}
+.materials-bar strong {
+  font:
+    18px ui-monospace,
+    monospace;
+}
+.materials-bar small {
+  grid-column: 1/-1;
+}
+.materials-bar p {
+  font-size: 11px;
+  color: #8297a0;
+  margin-left: auto;
+  max-width: 190px;
+}
+.facility-symbol {
+  font:
+    22px ui-monospace,
+    monospace;
+}
+.facility-label {
+  font:
+    10px ui-monospace,
+    monospace;
+  fill: #c1d1cb;
+}
+.facility-card {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin: 24px 0 15px;
+  padding: 16px;
+  background: #1b2b34;
+  border-radius: 6px;
+}
+.facility-icon {
+  font:
+    32px ui-monospace,
+    monospace;
+  color: #c4e79b;
+}
+.facility-card h3 {
+  margin: 0 0 6px;
+}
+.yield {
+  font:
+    13px ui-monospace,
+    monospace;
+  color: #c4e79b;
+  line-height: 1.7;
+}
+.attack-options {
+  display: flex;
+  gap: 8px;
+}
+.attack-options button {
+  flex: 1;
+}
+@media (max-width: 1100px) {
+  .army-grid {
+    grid-template-columns: 1fr;
+  }
+  .army-budget {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .army-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .materials-bar {
+    gap: 18px;
+  }
+}
+@media (max-width: 520px) {
+  .national-army {
+    padding: 15px;
+  }
+  .materials-bar {
+    padding: 14px 16px;
+    gap: 14px 25px;
+  }
+  .materials-bar p {
+    max-width: none;
+    margin: 0;
+  }
+  .army-total strong {
+    font-size: 19px;
+  }
+}
 :root {
   font-family:
     Inter,
