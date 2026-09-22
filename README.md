@@ -28,11 +28,13 @@ npm run preview
 - Každý region má město, železný či uhelný důl, ropné pole nebo přístav. Budovu lze vylepšit na úroveň 5.
 - Obilná pole zásobují obyvatelstvo; spotřeba roste s populací a nedostatek snižuje příjem.
 - V národním trhu lze po 25 jednotkách nakupovat i prodávat železo, uhlí, ropu a obilí. Přístavy zlevňují nákup.
+- Automatický nákup a prodej se zapíná zvlášť pro každou komoditu. Bez obilí umírá populace, bez ropy ubývají tanky.
 - Tanky se vyrábějí po pěti za 60 železa, 40 uhlí a 250 ¤; čtyřčlenné osádky zabírají populační limit.
 - Budovy i samostatná provinční opevnění mají maximální úroveň 20. Opevnění přidává 8 % obrany za úroveň.
 - Neutrální posádky jsou vidět přímo na mapě. Velikost útoku se nastavuje posuvníkem od 10 do 100 % volné armády.
 - Výzkum: tři větve po třech úrovních, jeden aktivní výzkum na frakci.
 - Operace: sledování výprav a ústup se ztrátou 20 % jednotek. Ústup není možný po ztrátě výchozího regionu.
+- Probíhající operace lze posilovat další částí volné armády. Frontu na mapě znázorňují tečky vojáků, bojový efekt a barevné přelévání provincie.
 - 1 / 2 / 4 mění rychlost. Esc zruší cíl. Klávesové zkratky nezasahují do aktivních tlačítek a vstupů.
 - Vítězství vyžaduje všech 35 regionů. Frakce bez území je poražena i s armádou na pochodu.
 - Ukládání probíhá každých 15 herních sekund, po rozkazu a při opuštění stránky. Obnovení stránky načte hru v pauze. Skrytí záložky hru pozastaví.
