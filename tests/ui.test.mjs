@@ -50,6 +50,8 @@ function setup(saved) {
 test("UI: select target, issue attack, simulate, save and reload", () => {
   const ui = setup();
   assert.equal(ui.w.document.querySelectorAll("[data-region]").length, 24);
+  assert.ok(ui.w.document.querySelectorAll(".state-border").length > 20);
+  assert.equal(ui.w.document.querySelectorAll(".map-army").length, 6);
   assert.match(ui.find(".live-state").textContent, /POZASTAVENO/);
   ui.click('[data-region="13"]');
   assert.equal(ui.find('[data-action="deploy"]').disabled, false);
@@ -89,6 +91,11 @@ test("UI: upgrade, research, help, new faction and army slider", () => {
   range.dispatchEvent(new ui.w.Event("input", { bubbles: true }));
   range.dispatchEvent(new ui.w.Event("change", { bubbles: true }));
   assert.match(ui.find(".range-label").textContent, /70 %/);
+  const aggression = ui.find("#bot-aggression");
+  aggression.value = "80";
+  aggression.dispatchEvent(new ui.w.Event("input", { bubbles: true }));
+  aggression.dispatchEvent(new ui.w.Event("change", { bubbles: true }));
+  assert.match(ui.find("#bot-aggression-label").textContent, /80 %/);
   ui.click('[data-region="1"]');
   ui.click('[data-action="force:90"]');
   ui.click('[data-action="deploy"]');
