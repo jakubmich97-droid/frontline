@@ -20,15 +20,18 @@ import {
   FACILITIES,
   BRANCHES,
   TECH_NAMES,
+  TRADE,
+  TRADE_LOT,
   tankBlocker,
   type Game,
   type Command,
   type Branch,
+  type Commodity,
 } from "./engine.ts";
 const app = document.querySelector<HTMLDivElement>("#app")!;
-const KEY = "frontline.save.v2";
+const KEY = "frontline.save.v3";
 let game: Game = createGame(),
-  selected = 14,
+  selected = 17,
   target: number | null = null,
   percent = 60,
   paused = true,
@@ -71,7 +74,7 @@ function save() {
 }
 try {
   const current = localStorage.getItem(KEY),
-    legacy = current ? null : localStorage.getItem("frontline.save.v1"),
+    legacy = current ? null : localStorage.getItem("frontline.save.v2") || localStorage.getItem("frontline.save.v1"),
     raw = current || legacy;
   if (raw) {
     const restored = restore(raw);
@@ -97,7 +100,7 @@ function send(c: Command) {
   render();
 }
 function mapMarkup() {
-  return `<svg class="world-map" viewBox="0 0 920 670" role="group" aria-label="Strategická mapa, 24 regionů"><defs><pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#24404e" stroke-width=".5"/></pattern><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs><rect width="920" height="670" fill="url(#grid)"/><text x="38" y="37" class="map-note">JANTAROVÉ POBŘEŽÍ / SUROVINOVÁ MAPA</text><text x="870" y="37" class="map-note">N ↑</text><text x="440" y="630" text-anchor="middle" class="sea-label">JIŽNÍ MOŘE</text>
+  return `<svg class="world-map" viewBox="0 0 920 670" role="group" aria-label="Strategická mapa, 35 regionů"><defs><pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#24404e" stroke-width=".5"/></pattern><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs><rect width="920" height="670" fill="url(#grid)"/><text x="28" y="27" class="map-note">JANTAROVÝ KONTINENT / KOMODITNÍ MAPA</text><text x="890" y="27" class="map-note">N ↑</text><text x="460" y="650" text-anchor="middle" class="sea-label">JIŽNÍ MOŘE</text>
 ${game.regions
   .map((r) => {
     const color = r.owner < 0 ? "#64757b" : game.nations[r.owner].color,
@@ -107,7 +110,7 @@ ${game.regions
   .join("")}
 ${game.regions.map((r) => {
   const pts = r.polygon.split(" ").map((p) => p.split(",").map(Number)),
-    edges = [[0, 1, r.id - 6], [1, 2, r.id + 1], [2, 3, r.id + 6], [3, 0, r.id - 1]];
+    edges = [[0, 1, r.id - 7], [1, 2, r.id + 1], [2, 3, r.id + 7], [3, 0, r.id - 1]];
   return edges.map(([a, b, neighbor]) => {
     const same = r.neighbors.includes(neighbor) && game.regions[neighbor]?.owner === r.owner;
     if (same) return "";
@@ -149,8 +152,16 @@ function facilityYield(r: Game["regions"][number]) {
   if (r.facility === "port")
     return r.level * 6 + " ¤/s základ · levnější dovoz";
   return (
-    decimal(r.level * (r.facility === "oil" ? 1.2 : 0.8)) + " jednotek/s základ"
+    decimal(r.level * (r.facility === "grain" ? 2.5 : r.facility === "oil" ? 1.2 : 0.8)) + " jednotek/s základ"
   );
+}
+function tradePanel() {
+  const n = game.nations[game.player], e = economy(game, game.player),
+    discount = Math.min(0.35, e.production.port * 0.08);
+  return `<div class="panel-heading"><span class="eyebrow">NÁRODNÍ TRH</span><h2>Obchod</h2><p class="muted">Nakupuj chybějící suroviny nebo prodávej přebytky po ${TRADE_LOT} jednotkách. Přístavy zlevňují nákup.</p></div><div class="market-grid">${(Object.keys(TRADE) as Commodity[]).map((k) => {
+    const item = TRADE[k], buy = TRADE_LOT * item.price * (1 - discount), sell = TRADE_LOT * item.price * .7;
+    return `<section class="market-card"><div class="market-head"><span>${item.symbol}</span><div><h3>${item.name}</h3><b>${num(n.resources[k])}</b></div></div><small>${k === "grain" ? `Spotřeba ${decimal(e.grainUse)}/s · ${e.foodCovered ? "zásobeno" : "nedostatek"}` : `Těžba ${decimal(e.production[k])}/s`}</small><div class="market-actions">${button(`Koupit · ${num(buy)} ¤`, `trade:buy:${k}`, n.money < buy)}${button(`Prodat · +${num(sell)} ¤`, `trade:sell:${k}`, n.resources[k] < TRADE_LOT)}</div></section>`;
+  }).join("")}</div><p class="muted small">Prodejní cena je 70 % základní ceny. Nákupní sleva z přístavů: ${Math.round(discount * 100)} %.</p>`;
 }
 function regionPanel() {
   const r = game.regions[target ?? selected],
@@ -198,7 +209,7 @@ function dialog() {
   if (modal === "new")
     return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><h2 id="dialog-title">Nová kampaň</h2><p class="muted">Nahradí aktuální partii. Původní záloha verze 0.1 zůstane zachovaná.</p><div class="faction-choices">${FACTIONS.map((n, id) => button(n.name, "new:" + id, false, "faction-choice")).join("")}</div>${button("Zpět do hry", "close", false, "wide")}</section></div>`;
   if (modal === "help")
-    return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><h2 id="dialog-title">Jedna armáda, jeden rozpočet</h2><ol><li>Posuvník určuje cílový počet osob podle populace. Pěchota se postupně nabírá za 3 ¤ na vojáka, nebo propouští bez náhrady.</li><li>Města dodávají populaci. Doly těží železo a uhlí, ropná pole palivo; přístavy vydělávají a zlevňují dovoz. Vše lze vylepšit na úroveň 5.</li><li>Tanky vyrábíš ručně ze železa a uhlí. Posuvník tanky nemaže; jejich osádky i provoz stojí zdroje i při cíli 0 %.</li><li>Armáda platí žold a spotřebovává ropu. Nejprve využije těžbu a zásoby, chybějící ropu automaticky dokoupí.</li><li>Klikni na sousední cizí území a vyčleň 30, 60 nebo 90 % volné armády. Číslo armády každého státu je vidět přímo na mapě.</li><li>Agresivita botů řídí jejich ochotu riskovat. Po zabrání neutrálních provincií pokračují válkou mezi státy; při 0 % pouze budují.</li></ol><p class="muted">Mezerník: pauza · 1/2/4: rychlost. Ukládání je místní, každých 15 herních sekund.</p>${button("Rozumím", "close", false, "primary wide")}</section></div>`;
+    return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><h2 id="dialog-title">Ekonomika, obchod a armáda</h2><ol><li>Posuvník určuje cílovou velikost společné národní armády.</li><li>35 provincií obsahuje města, železo, uhlí, ropu, obilí nebo přístavy. Symbol komodity je vidět přímo na mapě.</li><li>Obyvatelstvo průběžně spotřebovává obilí. Při nedostatku klesne příjem státu o 35 %.</li><li>V záložce Obchod nakupuješ a prodáváš balíky po 25 jednotkách. Přístavy zlevňují nákup; prodej vynáší 70 % základní ceny.</li><li>Tanky vyžadují železo a uhlí, armáda spotřebovává ropu.</li><li>Agresivita botů řídí jejich ochotu riskovat; při 0 % pouze budují.</li></ol><p class="muted">Mezerník: pauza · 1/2/4: rychlost. Ukládání je místní, každých 15 herních sekund.</p>${button("Rozumím", "close", false, "primary wide")}</section></div>`;
   return "";
 }
 function render() {
@@ -210,11 +221,11 @@ function render() {
     e = economy(game, game.player),
     ended = game.winner !== null || game.defeated.includes(game.player);
   if (ended) paused = true;
-  app.innerHTML = `<header><a class="brand" href="./" aria-label="Frontline"><span class="brand-mark">F</span>FRONTLINE<span class="version">STÁTNÍ HRANICE · 0.3</span></a><div class="header-actions"><span class="save-status">${saveStatus}</span>${button("Uložit", "save")}${button("?", "help", false, "help-button")}${button("Nová hra", "new")}</div></header>
-<div class="resource-bar"><div class="your-nation"><i style="background:${n.color}"></i><div><span class="eyebrow">TVÁ FRAKCE</span><strong>${n.name}</strong></div></div><div class="resource"><span>POKLADNA</span><strong>${num(n.money)} ¤</strong></div><div class="resource"><span>BILANCE / S*</span><strong class="${e.net >= 0 ? "positive" : "negative"}">${e.net >= 0 ? "+" : ""}${decimal(e.net)} ¤</strong></div><div class="resource"><span>POPULACE</span><strong>${num(e.population)}</strong></div><div class="resource"><span>ÚZEMÍ</span><strong>${owned(game, game.player).length}<small> / 24</small></strong></div><div class="time-controls"><span class="game-clock">${clock(game.time)}</span>${button(paused ? "▶ Spustit" : "Ⅱ Pauza", "pause", ended, "play-button")}${[1, 2, 4].map((s) => button(s + "×", "speed:" + s, false, speed === s ? "active" : "")).join("")}</div></div>
-<div class="materials-bar">${(["iron", "coal", "oil"] as const).map((k) => `<div><span>${FACILITIES[k].name === "Ropné pole" ? "ROPA" : k === "iron" ? "ŽELEZO" : "UHLÍ"}</span><strong>${num(n.resources[k])}</strong><small>těžba +${decimal(e.production[k])}/s</small></div>`).join("")}<div class="fuel-summary"><span>SPOTŘEBA ROPY</span><strong>${decimal(e.oilUse)}/s</strong><small>${e.importNow > 0 ? "Dovoz " + decimal(e.importNow) + "/s za " + decimal(e.oilPrice) + " ¤/jedn." : e.oilUse > e.production.oil ? "Čerpání zásob; poté placený dovoz" : "Pokryto vlastní těžbou"}</small></div><p>*Bilance před jednorázovým náborem a výstavbou.</p></div>
+  app.innerHTML = `<header><a class="brand" href="./" aria-label="Frontline"><span class="brand-mark">F</span>FRONTLINE<span class="version">OBCHOD A OBILÍ · 0.4</span></a><div class="header-actions"><span class="save-status">${saveStatus}</span>${button("Uložit", "save")}${button("?", "help", false, "help-button")}${button("Nová hra", "new")}</div></header>
+<div class="resource-bar"><div class="your-nation"><i style="background:${n.color}"></i><div><span class="eyebrow">TVÁ FRAKCE</span><strong>${n.name}</strong></div></div><div class="resource"><span>POKLADNA</span><strong>${num(n.money)} ¤</strong></div><div class="resource"><span>BILANCE / S*</span><strong class="${e.net >= 0 ? "positive" : "negative"}">${e.net >= 0 ? "+" : ""}${decimal(e.net)} ¤</strong></div><div class="resource"><span>POPULACE</span><strong>${num(e.population)}</strong></div><div class="resource"><span>ÚZEMÍ</span><strong>${owned(game, game.player).length}<small> / 35</small></strong></div><div class="time-controls"><span class="game-clock">${clock(game.time)}</span>${button(paused ? "▶ Spustit" : "Ⅱ Pauza", "pause", ended, "play-button")}${[1, 2, 4].map((s) => button(s + "×", "speed:" + s, false, speed === s ? "active" : "")).join("")}</div></div>
+<div class="materials-bar">${(["iron", "coal", "oil", "grain"] as Commodity[]).map((k) => `<div class="commodity commodity-${k}"><span>${TRADE[k].symbol} ${TRADE[k].name.toUpperCase()}</span><strong>${num(n.resources[k])}</strong><small>${k === "grain" ? `+${decimal(e.production.grain)} / −${decimal(e.grainUse)}/s` : `těžba +${decimal(e.production[k])}/s`}</small></div>`).join("")}<div class="fuel-summary"><span>STAV ZÁSOBOVÁNÍ</span><strong class="${e.foodCovered ? "positive" : "warning"}">${e.foodCovered ? "ZÁSOBENO" : "NEDOSTATEK OBILÍ"}</strong><small>Ropa ${decimal(e.oilUse)}/s · obilí ${decimal(e.grainUse)}/s</small></div><p>*Bilance před jednorázovým náborem a výstavbou.</p></div>
 <main><section class="map-column">${armyPanel()}<div class="map-heading"><div><span class="eyebrow">OPERAČNÍ MAPA</span><h1>Jantarové pobřeží</h1></div><span class="live-state ${paused ? "is-paused" : ""}">${ended ? "KONEC PARTIE" : paused ? "POZASTAVENO" : "SIMULACE BĚŽÍ"}</span></div>
-<div class="map-surface ${paused ? "paused" : ""}">${mapMarkup()}<div class="map-score"><b>STÁTY</b>${game.nations.filter((f) => owned(game, f.id).length).map((f) => `<span><i style="background:${f.color}"></i>${owned(game, f.id).length} úz. · ⚔ ${num(f.army.infantry)}</span>`).join("")}</div>${ended ? `<div class="result-banner"><h2>${game.winner === game.player ? "Vítězství" : "Tvá frakce byla poražena"}</h2>${button("Nová kampaň", "new", false, "primary")}</div>` : ""}</div><div class="map-footer"><span>▥ Město · Fe Železo · C Uhlí · ◈ Ropa · ⚓ Přístav</span><span>Číslo na mapě = volná armáda</span></div><div class="notice" role="status">${esc(notice)}</div>
+<div class="map-surface ${paused ? "paused" : ""}">${mapMarkup()}<div class="map-score"><b>STÁTY</b>${game.nations.filter((f) => owned(game, f.id).length).map((f) => `<span><i style="background:${f.color}"></i>${owned(game, f.id).length} úz. · ⚔ ${num(f.army.infantry)}</span>`).join("")}</div>${ended ? `<div class="result-banner"><h2>${game.winner === game.player ? "Vítězství" : "Tvá frakce byla poražena"}</h2>${button("Nová kampaň", "new", false, "primary")}</div>` : ""}</div><div class="map-footer"><span>▥ Město · Fe Železo · C Uhlí · ◈ Ropa · ◆ Obilí · ⚓ Přístav</span><span>Číslo na mapě = volná armáda</span></div><div class="notice" role="status">${esc(notice)}</div>
 <div class="bottom-grid"><section><div class="section-title">ROVNOVÁHA SIL <span>ÚZEMÍ / ARMÁDA</span></div>${game.nations.map((f) => `<div class="faction-row"><i style="background:${f.color}"></i><span>${f.name}</span><b>${owned(game, f.id).length}</b><small>${num(f.army.infantry)} / ${num(f.army.tanks)}</small></div>`).join("")}</section><section><div class="section-title">HLÁŠENÍ Z FRONTY</div><div class="events">${game.log
     .slice(0, 10)
     .map(
@@ -222,7 +233,7 @@ function render() {
         `<div><time>${clock(l.time)}</time><span>${esc(l.text)}</span></div>`,
     )
     .join("")}</div></section></div></section>
-<aside><nav aria-label="Velitelský panel">${["region", "research", "operations"].map((t) => button(({ region: "Území", research: "Výzkum", operations: "Operace" } as Record<string, string>)[t], "tab:" + t, false, tab === t ? "active" : "")).join("")}</nav><div class="panel-body">${tab === "region" ? regionPanel() : tab === "research" ? researchPanel() : operationsPanel()}</div><div class="panel-bottom">Místní simulace · jedna národní armáda</div></aside></main>${dialog()}`;
+<aside><nav aria-label="Velitelský panel">${["region", "trade", "research", "operations"].map((t) => button(({ region: "Území", trade: "Obchod", research: "Výzkum", operations: "Operace" } as Record<string, string>)[t], "tab:" + t, false, tab === t ? "active" : "")).join("")}</nav><div class="panel-body">${tab === "region" ? regionPanel() : tab === "trade" ? tradePanel() : tab === "research" ? researchPanel() : operationsPanel()}</div><div class="panel-bottom">Místní simulace · jedna národní armáda</div></aside></main>${dialog()}`;
   const focus = focusId
     ? document.getElementById(focusId)
     : action
@@ -261,11 +272,13 @@ app.addEventListener("click", (ev) => {
   }
   const a = el.closest<HTMLElement>("[data-action]")?.dataset.action;
   if (!a) return;
-  const [kind, value] = a.split(":");
+  const [kind, value, extra] = a.split(":");
   if (kind === "upgrade") send({ type: "upgrade", region: target ?? selected });
   else if (kind === "tanks") send({ type: "tanks" });
   else if (kind === "research")
     send({ type: "research", branch: value as Branch });
+  else if (kind === "trade")
+    send({ type: "trade", side: value as "buy" | "sell", commodity: extra as Commodity });
   else if (kind === "retreat")
     send({ type: "retreat", operation: Number(value) });
   else if (kind === "deploy" && target !== null)
