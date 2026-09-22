@@ -222,7 +222,7 @@ function operationsPanel() {
   const ops = game.operations.filter(
     (o) => o.owner === game.player || game.regions[o.to].owner === game.player,
   ), free = available(game, game.player);
-  return `<h2>Operace · ${ops.length}</h2><p class="muted">Postup bitvy ukazuje přímo barevné přelévání napadené provincie.</p>${ops.map((o) => `<section class="operation-card"><span class="tag">${o.owner === game.player ? "Vlastní výprava" : "Nepřátelský útok"} · ${o.phase === "march" ? "Přesun" : "Bitva"}</span><h3>${game.regions[o.to].name}</h3><p>${num(o.army.infantry)} pěchoty · ${num(o.army.tanks)} tanků</p><p class="muted">Dominance útoku ${Math.floor(o.progress * 100)} % · ztráty síly ${num(o.losses)}</p>${o.owner === game.player ? button(`Přidat posily · ${percent} % volných`, "reinforce:" + o.id, free.infantry < 1 && free.tanks < 1, "wide") + button("Ustoupit (−20 % jednotek)", "retreat:" + o.id, false, "wide") : ""}</section>`).join("") || '<p class="muted">Žádné probíhající operace u tvého státu.</p>'}`;
+  return `<h2>Operace · ${ops.length}</h2><p class="muted">Postup bitvy ukazuje přímo barevné přelévání napadené provincie.</p>${ops.some((o) => o.owner === game.player) ? `<label class="range-label" for="reinforce-size">Velikost posil <strong id="reinforce-size-label">${percent} %</strong></label><input type="range" id="reinforce-size" aria-label="Velikost posil" min="10" max="100" step="5" value="${percent}">` : ""}${ops.map((o) => `<section class="operation-card"><span class="tag">${o.owner === game.player ? "Vlastní výprava" : "Nepřátelský útok"} · ${o.phase === "march" ? "Přesun" : "Bitva"}</span><h3>${game.regions[o.to].name}</h3><p>${num(o.army.infantry)} pěchoty · ${num(o.army.tanks)} tanků</p><p class="muted">Dominance útoku ${Math.floor(o.progress * 100)} % · ztráty síly ${num(o.losses)}</p>${o.owner === game.player ? button(`Přidat posily · ${percent} % volných`, "reinforce:" + o.id, free.infantry < 1 && free.tanks < 1, "wide") + button("Ustoupit (−20 % jednotek)", "retreat:" + o.id, false, "wide") : ""}</section>`).join("") || '<p class="muted">Žádné probíhající operace u tvého státu.</p>'}`;
 }
 function dialog() {
   if (modal === "new")
@@ -369,6 +369,9 @@ app.addEventListener("input", (ev) => {
     const free = available(game, game.player);
     document.getElementById("attack-units")!.textContent =
       `Vyčlenit ${Math.floor((free.infantry * percent) / 100)} pěšáků a ${Math.floor((free.tanks * percent) / 100)} tanků ze společné armády.`;
+  } else if (el.id === "reinforce-size") {
+    percent = Number(el.value);
+    document.getElementById("reinforce-size-label")!.textContent = percent + " %";
   }
 });
 app.addEventListener("change", (ev) => {
@@ -380,6 +383,8 @@ app.addEventListener("change", (ev) => {
   } else if (el.id === "bot-aggression") {
     send({ type: "botAggression", percent: Number(el.value) });
   } else if (el.id === "attack-size") {
+    percent = Number(el.value);
+  } else if (el.id === "reinforce-size") {
     percent = Number(el.value);
   }
 });
