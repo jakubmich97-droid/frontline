@@ -104,6 +104,39 @@
     monospace;
   fill: #c1d1cb;
 }
+.neutral-garrison rect {
+  fill: #111b22;
+  stroke: #b6c2c5;
+  stroke-width: 1;
+  filter: drop-shadow(0 2px 3px #000a);
+}
+.neutral-garrison text,
+.fort-label {
+  text-anchor: middle;
+  fill: #e2e8e5;
+  font: 700 9px ui-monospace, monospace;
+}
+.fort-label {
+  fill: #b9d99a;
+}
+.fort-card {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #34483d;
+  border-radius: 6px;
+  background: #15231e;
+}
+.fort-card > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  color: #c9dbc5;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+.fort-card b {
+  color: var(--accent);
+  font-family: ui-monospace, monospace;
+}
 .commodity-grain strong,
 .commodity-grain span {
   color: #e2c879;
