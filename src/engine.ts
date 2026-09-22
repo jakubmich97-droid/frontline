@@ -29,6 +29,8 @@ export type Nation = {
   army: Units;
   armyTarget: number;
   resources: Record<Commodity, number>;
+  autoTrade: Record<Commodity, { buy: boolean; sell: boolean }>;
+  populationLoss: number;
   tankQueue: Queue | null;
   tech: Record<Branch, number>;
   research: (Queue & { branch: Branch }) | null;
@@ -63,7 +65,9 @@ export type Command =
   | { type: "armyTarget"; percent: number }
   | { type: "botAggression"; percent: number }
   | { type: "trade"; commodity: Commodity; side: "buy" | "sell" }
+  | { type: "autoTrade"; commodity: Commodity; side: "buy" | "sell" }
   | { type: "deploy"; from: number; to: number; percent: number }
+  | { type: "reinforce"; operation: number; percent: number }
   | { type: "upgrade"; region: number }
   | { type: "fortify"; region: number }
   | { type: "tanks" }
@@ -277,6 +281,13 @@ export function createGame(seed = 42, player = 0): Game {
       army: { infantry: 160, tanks: 0 },
       armyTarget: 35,
       resources: { iron: 0, coal: 0, oil: 30, grain: 40 },
+      autoTrade: {
+        iron: { buy: false, sell: false },
+        coal: { buy: false, sell: false },
+        oil: { buy: false, sell: false },
+        grain: { buy: false, sell: false },
+      },
+      populationLoss: 0,
       tankQueue: null,
       tech: { military: 0, industry: 0, logistics: 0 },
       research: null,
@@ -321,8 +332,12 @@ export function available(g: Game, id: number): Units {
     tanks: Math.max(0, a.tanks - d.tanks),
   };
 }
+export const potentialPopulation = (g: Game, id: number) =>
+  owned(g, id).reduce((s, r) => s + population(r), 0);
+export const currentPopulation = (g: Game, id: number) =>
+  Math.max(0, potentialPopulation(g, id) - g.nations[id].populationLoss);
 export const capacity = (g: Game, id: number) =>
-  Math.floor(owned(g, id).reduce((s, r) => s + population(r), 0) * 0.04);
+  Math.floor(currentPopulation(g, id) * 0.04);
 export const targetPersonnel = (
   g: Game,
   id: number,
@@ -346,17 +361,16 @@ export function runningCost(g: Game, id: number, a: Units) {
     salary = a.infantry * 0.014 + a.tanks * 0.28,
     oilUse =
       (a.infantry * 0.002 + a.tanks * 0.12) * (1 - n.tech.logistics * 0.1),
-    oilPrice = 3 * (1 - Math.min(0.4, p.port * 0.12)),
-    importSteady = Math.max(0, oilUse - p.oil),
-    importNow = Math.max(0, oilUse - p.oil - n.resources.oil);
+    oilPrice = TRADE.oil.price * (1 - Math.min(0.35, p.port * 0.08)),
+    oilShortage = Math.max(0, oilUse - p.oil - n.resources.oil);
   return {
     salary,
     oilUse,
     oilPrice,
-    importSteady,
-    importNow,
-    oilCost: importNow * oilPrice,
-    steadyCost: salary + importSteady * oilPrice,
+    importSteady: 0,
+    importNow: oilShortage,
+    oilCost: 0,
+    steadyCost: salary,
   };
 }
 export function economy(g: Game, id: number) {
@@ -376,10 +390,11 @@ export function economy(g: Game, id: number) {
       ) *
       (1 + n.tech.industry * 0.16),
     costs = runningCost(g, id, n.army),
-    totalPopulation = rs.reduce((s, r) => s + population(r), 0),
+    totalPopulation = currentPopulation(g, id),
     grainUse = totalPopulation / 5000,
     grainBalance = p.grain - grainUse,
     foodCovered = n.resources.grain + p.grain >= grainUse,
+    oilCovered = n.resources.oil + p.oil >= costs.oilUse,
     target = targetPersonnel(g, id),
     reservedCrew = n.tankQueue ? 20 : 0,
     desiredInfantry = Math.max(0, target - 4 * n.army.tanks - reservedCrew),
@@ -396,6 +411,7 @@ export function economy(g: Game, id: number) {
     grainUse,
     grainBalance,
     foodCovered,
+    oilCovered,
     capacity: capacity(g, id),
     target,
     desiredInfantry,
@@ -446,6 +462,9 @@ export function issue(
       n.resources[c.commodity] -= TRADE_LOT;
       n.money += total;
     }
+  } else if (c.type === "autoTrade") {
+    if (!Object.hasOwn(TRADE, c.commodity)) return fail("Neznámá komodita.");
+    n.autoTrade[c.commodity][c.side] = !n.autoTrade[c.commodity][c.side];
   } else if (c.type === "deploy") {
     const from = g.regions[c.from],
       to = g.regions[c.to];
@@ -484,6 +503,20 @@ export function issue(
       losses: 0,
       neutralResistance: to.owner < 0 ? 35 + to.level * 8 : 0,
     });
+  } else if (c.type === "reinforce") {
+    const o = g.operations.find((op) => op.id === c.operation && op.owner === actor);
+    if (!o) return fail("Operace už skončila.");
+    if (!Number.isFinite(c.percent) || c.percent < 10 || c.percent > 100)
+      return fail("Posily musí tvořit 10–100 % volné armády.");
+    const free = available(g, actor), add = {
+      infantry: Math.floor((free.infantry * c.percent) / 100),
+      tanks: Math.floor((free.tanks * c.percent) / 100),
+    };
+    if (add.infantry < 1 && add.tanks < 1) return fail("Pro posily nejsou volné jednotky.");
+    o.army.infantry += add.infantry;
+    o.army.tanks += add.tanks;
+    o.initial += strength(add);
+    event(g, n.name + ": posily míří do operace u " + g.regions[o.to].name + ".");
   } else if (c.type === "upgrade") {
     const r = g.regions[c.region];
     if (!r || r.owner !== actor)
@@ -586,22 +619,56 @@ export function defenseStrength(g: Game, r: Region) {
     (1 + g.nations[r.owner].tech.military * 0.12)
   );
 }
+function runAutoTrade(g: Game, id: number) {
+  const n = g.nations[id], e = economy(g, id);
+  for (const commodity of Object.keys(TRADE) as Commodity[]) {
+    const demand = commodity === "grain" ? e.grainUse : commodity === "oil" ? e.oilUse : 0,
+      buyBelow = Math.max(10, demand * 8),
+      sellAbove = Math.max(100, demand * 35);
+    if (n.autoTrade[commodity].buy && n.resources[commodity] < buyBelow)
+      issue(g, id, { type: "trade", commodity, side: "buy" });
+    else if (n.autoTrade[commodity].sell && n.resources[commodity] > sellAbove)
+      issue(g, id, { type: "trade", commodity, side: "sell" });
+  }
+}
+function loseFuelTanks(g: Game, id: number, amount: number) {
+  const n = g.nations[id], loss = Math.min(n.army.tanks, amount);
+  if (loss <= 0) return;
+  const deployedTanks = g.operations
+    .filter((o) => o.owner === id)
+    .reduce((sum, o) => sum + o.army.tanks, 0);
+  if (deployedTanks > 0)
+    for (const o of g.operations.filter((o) => o.owner === id))
+      o.army.tanks = Math.max(0, o.army.tanks - loss * (o.army.tanks / n.army.tanks));
+  n.army.tanks -= loss;
+}
 export function tick(g: Game, bots = true): void {
   if (g.winner !== null) return;
   g.time++;
   for (const n of g.nations) {
     if (g.defeated.includes(n.id)) continue;
+    runAutoTrade(g, n.id);
     const e = economy(g, n.id);
     n.resources.iron += e.production.iron;
     n.resources.coal += e.production.coal;
-    n.resources.grain = Math.max(
-      0,
-      n.resources.grain + e.production.grain - e.grainUse,
-    );
-    n.resources.oil = Math.max(
-      0,
-      n.resources.oil + e.production.oil - e.oilUse,
-    );
+    const grainAvailable = n.resources.grain + e.production.grain,
+      grainShortage = Math.max(0, e.grainUse - grainAvailable),
+      oilAvailable = n.resources.oil + e.production.oil,
+      oilShortage = Math.max(0, e.oilUse - oilAvailable);
+    n.resources.grain = Math.max(0, grainAvailable - e.grainUse);
+    n.resources.oil = Math.max(0, oilAvailable - e.oilUse);
+    if (grainShortage > 0) {
+      n.populationLoss = Math.min(
+        potentialPopulation(g, n.id),
+        n.populationLoss + grainShortage * 20,
+      );
+    } else n.populationLoss = Math.max(0, n.populationLoss - Math.max(1, e.population * 0.0002));
+    if (oilShortage > 0 && e.oilUse > 0)
+      loseFuelTanks(
+        g,
+        n.id,
+        Math.max(0.02, n.army.tanks * 0.015) * (oilShortage / e.oilUse),
+      );
     const insolvent = n.money + e.net < 0;
     n.money = Math.max(0, n.money + e.net);
     if (insolvent) {
@@ -686,10 +753,8 @@ export function tick(g: Game, bots = true): void {
           (attack * 0.016) / (defense(r) * (1 + r.fort * 0.08)),
       );
     else loseReserve(g, r.owner, (attack * 0.016) / defense(r));
-    o.progress = Math.min(
-      1,
-      o.progress + Math.max(0.001, (attack / (defend + 20)) * 0.007),
-    );
+    const dominance = (attack - defend) / Math.max(20, attack + defend);
+    o.progress = Math.max(0, Math.min(1, o.progress + dominance * 0.028));
     if (o.army.infantry < 1 || strength(o.army) < 3) {
       loseOperation(g, o, strength(o.army));
       done.add(o.id);
@@ -743,14 +808,10 @@ export function botTurn(g: Game, id: number) {
     threat = g.operations.some(
       (o) => g.regions[o.to].owner === id && o.owner !== id,
     );
-  if (n.resources.grain < e.grainUse * 8 && n.money > TRADE_LOT * TRADE.grain.price)
-    issue(g, id, { type: "trade", commodity: "grain", side: "buy" });
-  if (n.resources.grain > e.grainUse * 45 + TRADE_LOT)
-    issue(g, id, { type: "trade", commodity: "grain", side: "sell" });
-  if (n.resources.iron >= 60 + TRADE_LOT * 2)
-    issue(g, id, { type: "trade", commodity: "iron", side: "sell" });
-  if (n.resources.coal >= 40 + TRADE_LOT * 2)
-    issue(g, id, { type: "trade", commodity: "coal", side: "sell" });
+  n.autoTrade.grain.buy = true;
+  n.autoTrade.oil.buy = true;
+  n.autoTrade.iron.sell = true;
+  n.autoTrade.coal.sell = true;
   issue(g, id, {
     type: "armyTarget",
     percent:
@@ -909,6 +970,8 @@ function migrateV2(old: any): Game | null {
     target.army = source.army;
     target.armyTarget = source.armyTarget;
     target.resources = { ...source.resources, grain: source.resources.grain ?? 40 };
+    target.populationLoss = source.populationLoss ?? 0;
+    target.autoTrade = source.autoTrade ?? target.autoTrade;
     target.tech = source.tech;
     target.research = source.research;
     target.tankQueue = source.tankQueue;
@@ -984,16 +1047,26 @@ export function restore(raw: string): Game | null {
     }
     for (let i = 0; i < 6; i++) {
       const n = g.nations[i];
+      if (n && n.populationLoss === undefined) n.populationLoss = 0;
+      if (n && n.autoTrade === undefined) n.autoTrade = base.nations[i].autoTrade;
       if (
         !n ||
         n.id !== i ||
         !nonneg(n.money) ||
         !validArmy(n.army) ||
+        !nonneg(n.populationLoss) ||
         !nonneg(n.armyTarget) ||
         n.armyTarget > 100 ||
         !n.resources ||
         !["iron", "coal", "oil", "grain"].every((k) =>
           nonneg(n.resources[k as "iron"]),
+        ) ||
+        !n.autoTrade ||
+        !(Object.keys(TRADE) as Commodity[]).every(
+          (k) =>
+            n.autoTrade[k] &&
+            typeof n.autoTrade[k].buy === "boolean" &&
+            typeof n.autoTrade[k].sell === "boolean",
         ) ||
         !n.tech ||
         !BRANCHES.every(
