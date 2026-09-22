@@ -236,6 +236,18 @@ test("victory and elimination", () => {
   assert.equal(g.nations[1].army.infantry, 0);
   assert.equal(issue(g, 0, { type: "armyTarget", percent: 10 }).ok, false);
 });
+test("bot aggression controls wars after neutral regions are gone", () => {
+  const g = createGame(7);
+  g.regions.forEach((r, i) => (r.owner = i < 12 ? 1 : 2));
+  g.nations[1].army.infantry = 400;
+  g.botAggression = 0;
+  botTurn(g, 1);
+  assert.equal(g.operations.length, 0);
+  g.botAggression = 100;
+  botTurn(g, 1);
+  assert.equal(g.operations.length, 1);
+  assert.equal(g.regions[g.operations[0].to].owner, 2);
+});
 test("five long bot simulations preserve resource and army invariants", () => {
   for (const seed of [1, 42, 721, 9001, 107]) {
     const g = createGame(seed);
