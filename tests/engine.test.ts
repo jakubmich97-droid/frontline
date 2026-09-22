@@ -70,6 +70,28 @@ test("city upgrade increases population and manpower only on completion", () => 
   assert.equal(capacity(g, 0), before + 320);
   assert.equal(g.regions[17].level, 3);
 });
+test("facilities and fortifications can reach level 20", () => {
+  const g = createGame(), r = g.regions[17], n = g.nations[0];
+  r.level = 19;
+  n.money = 10000;
+  assert.ok(issue(g, 0, { type: "upgrade", region: 17 }).ok);
+  for (let i = 0; i < 35; i++) tick(g, false);
+  assert.equal(r.level, 20);
+  assert.equal(issue(g, 0, { type: "upgrade", region: 17 }).ok, false);
+  r.fort = 19;
+  assert.ok(issue(g, 0, { type: "fortify", region: 17 }).ok);
+  for (let i = 0; i < 25; i++) tick(g, false);
+  assert.equal(r.fort, 20);
+  assert.equal(issue(g, 0, { type: "fortify", region: 17 }).ok, false);
+});
+test("fortifications raise defense and full-army attacks are allowed", () => {
+  const g = createGame(), r = g.regions[17];
+  const before = defenseStrength(g, r);
+  r.fort = 5;
+  assert.ok(defenseStrength(g, r) > before * 1.39);
+  assert.ok(issue(g, 0, { type: "deploy", from: 17, to: 16, percent: 100 }).ok);
+  assert.equal(available(g, 0).infantry, 0);
+});
 test("mines produce separate national stocks, enemies do not receive them", () => {
   const g = createGame();
   g.regions[13].owner = 0;
