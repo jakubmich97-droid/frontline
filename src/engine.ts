@@ -54,9 +54,11 @@ export type Game = {
   log: { time: number; text: string }[];
   winner: number | null;
   defeated: number[];
+  botAggression: number;
 };
 export type Command =
   | { type: "armyTarget"; percent: number }
+  | { type: "botAggression"; percent: number }
   | { type: "deploy"; from: number; to: number; percent: number }
   | { type: "upgrade"; region: number }
   | { type: "tanks" }
@@ -245,6 +247,7 @@ export function createGame(seed = 42, player = 0): Game {
     ],
     winner: null,
     defeated: [],
+    botAggression: 60,
   };
 }
 function event(g: Game, text: string) {
@@ -370,6 +373,10 @@ export function issue(
     if (!Number.isFinite(c.percent) || c.percent < 0 || c.percent > 100)
       return fail("Velikost armády musí být 0–100 %.");
     n.armyTarget = Math.round(c.percent);
+  } else if (c.type === "botAggression") {
+    if (actor !== g.player || !Number.isFinite(c.percent) || c.percent < 0 || c.percent > 100)
+      return fail("Agresivita botů musí být 0–100 %.");
+    g.botAggression = Math.round(c.percent);
   } else if (c.type === "deploy") {
     const from = g.regions[c.from],
       to = g.regions[c.to];
@@ -635,6 +642,8 @@ export function botTurn(g: Game, id: number) {
     rs = owned(g, id);
   if (!rs.length) return;
   const e = economy(g, id),
+    neutralLeft = g.regions.some((r) => r.owner < 0),
+    aggression = Math.max(0, Math.min(100, g.botAggression ?? 60)),
     threat = g.operations.some(
       (o) => g.regions[o.to].owner === id && o.owner !== id,
     );
@@ -646,8 +655,8 @@ export function botTurn(g: Game, id: number) {
         : threat
           ? 65
           : n.personality === "aggressive"
-            ? 55
-            : 40,
+            ? 50 + aggression * 0.25
+            : 35 + aggression * 0.2,
   });
   const free = available(g, id),
     candidates: { from: number; to: Region; score: number }[] = [];
@@ -668,15 +677,20 @@ export function botTurn(g: Game, id: number) {
     }
   candidates.sort((a, b) => a.score - b.score);
   const t = candidates[0];
+  const attackShare = Math.round(50 + aggression * 0.35),
+    caution = neutralLeft
+      ? n.personality === "cautious" ? 1.45 : 1.12
+      : Math.max(0.82, 1.35 - aggression * 0.005);
   if (
     t &&
     !threat &&
-    g.operations.filter((o) => o.owner === id).length < 2 &&
+    aggression > 0 &&
+    g.operations.filter((o) => o.owner === id).length < (aggression >= 75 ? 2 : 1) &&
     free.infantry > 40 &&
-    strength(free) * 0.65 >
-      defenseStrength(g, t.to) * (n.personality === "cautious" ? 1.5 : 1.15)
+    strength(free) * (attackShare / 100) > defenseStrength(g, t.to) * caution &&
+    (neutralLeft || rand(g) < 0.2 + aggression * 0.008)
   )
-    issue(g, id, { type: "deploy", from: t.from, to: t.to.id, percent: 65 });
+    issue(g, id, { type: "deploy", from: t.from, to: t.to.id, percent: attackShare });
   if (!tankBlocker(g, id) && n.money > 400) issue(g, id, { type: "tanks" });
   if (n.money > 850) {
     const upgrades = rs
@@ -770,6 +784,7 @@ export function restore(raw: string): Game | null {
     const parsed = JSON.parse(raw),
       g: Game = parsed.version === 1 ? migrate(parsed) : parsed;
     if (!g || g.version !== 2) return null;
+    if (g.botAggression === undefined) g.botAggression = 60;
     const id = (x: number) => Number.isInteger(x) && x >= 0 && x < 6,
       regionId = (x: number) => Number.isInteger(x) && x >= 0 && x < 24;
     if (
@@ -789,6 +804,8 @@ export function restore(raw: string): Game | null {
       !g.defeated.every(id) ||
       !(g.winner === null || id(g.winner)) ||
       !Array.isArray(g.log) ||
+      !nonneg(g.botAggression) ||
+      g.botAggression > 100 ||
       !g.log.every((l) => l && nonneg(l.time) && typeof l.text === "string")
     )
       return null;
