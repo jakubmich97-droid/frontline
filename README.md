@@ -26,18 +26,20 @@ npm run preview
 - Stát má jednu společnou armádu. Posuvníkem nastavíš její cílovou velikost jako podíl populačního limitu; pěchota se postupně nabírá nebo demobilizuje.
 - Vyber vlastní region a klikni na přímého cizího souseda. Do operace vyčleníš 30, 60 nebo 90 % aktuálně volné armády. Zbytek brání celý stát.
 - Každý region má město, železný či uhelný důl, ropné pole nebo přístav. Budovu lze vylepšit na úroveň 5.
+- Obilná pole zásobují obyvatelstvo; spotřeba roste s populací a nedostatek snižuje příjem.
+- V národním trhu lze po 25 jednotkách nakupovat i prodávat železo, uhlí, ropu a obilí. Přístavy zlevňují nákup.
 - Tanky se vyrábějí po pěti za 60 železa, 40 uhlí a 250 ¤; čtyřčlenné osádky zabírají populační limit.
 - Výzkum: tři větve po třech úrovních, jeden aktivní výzkum na frakci.
 - Operace: sledování výprav a ústup se ztrátou 20 % jednotek. Ústup není možný po ztrátě výchozího regionu.
 - 1 / 2 / 4 mění rychlost. Esc zruší cíl. Klávesové zkratky nezasahují do aktivních tlačítek a vstupů.
-- Vítězství vyžaduje všech 24 regionů. Frakce bez území je poražena i s armádou na pochodu.
+- Vítězství vyžaduje všech 35 regionů. Frakce bez území je poražena i s armádou na pochodu.
 - Ukládání probíhá každých 15 herních sekund, po rozkazu a při opuštění stránky. Obnovení stránky načte hru v pauze. Skrytí záložky hru pozastaví.
 
 Uložení platí jen pro tento prohlížeč a adresu; smazání dat webu ho odstraní. Nová kampaň nahradí aktuální uloženou partii. Neexistuje offline dohánění času.
 
 ## Pravidla prototypu
 
-Město přidává na každé úrovni 8 000 obyvatel, tedy 320 míst v armádě, a daňový příjem. Doly těží železo a uhlí pro výrobu tanků. Ropná pole vyrábějí ropu pro průběžnou spotřebu armády. Chybějící ropa se automaticky dováží za peníze; přístavy tento dovoz zlevňují a zároveň vydělávají obchodem. Prázdná pokladna při záporné bilanci způsobuje ztráty armády.
+Město přidává na každé úrovni 8 000 obyvatel, tedy 320 míst v armádě, a daňový příjem. Doly těží železo a uhlí pro výrobu tanků. Ropná pole vyrábějí ropu pro průběžnou spotřebu armády. Obilná pole živí populaci; bez dostatku obilí klesá příjem o 35 %. Komodity lze obchodovat, přičemž přístavy zlevňují nákup. Prázdná pokladna při záporné bilanci způsobuje ztráty armády.
 
 Základní síla je pěchota + tanky × 6. Les a hory zvyšují obranu. Technologie armády přidává 12 % bojové síly, technologie ekonomiky zvyšuje příjmy a těžbu a logistika snižuje spotřebu ropy. Jednotky v operacích zůstávají součástí národní armády, ale nejsou volné pro další útok ani obranu. Při více napadených územích se volná obranná síla rozdělí mezi fronty.
 
@@ -55,7 +57,7 @@ Hráč a boty používají totožnou funkci `issue`. Seedovaný generátor zaji�
 
 ## Co zatím není hotové
 
-- Mapa je fiktivní testovací sektor s 24 regiony, ne Evropa ani pixelová fronta OpenFrontu.
+- Mapa je fiktivní kontinent s 35 regiony, ne Evropa ani pixelová fronta OpenFrontu.
 - Vizualizace zobrazuje trasy, pohyb výprav a postup dobytí uvnitř regionů, nikoli fyzicky posouvané hranice.
 - Pěchota a tanky jsou abstraktní národní síly. Dělostřelectvo, letectvo, námořní operace a diplomacie jsou další fáze.
 - Vyvážení a délka partie 30–60 minut nejsou garantované; vyžadují hraní a ladění.
