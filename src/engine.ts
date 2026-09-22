@@ -16,6 +16,8 @@ export type Region = {
   y: number;
   polygon: string;
   upgrade: Queue | null;
+  fort: number;
+  fortification: Queue | null;
 };
 export type Nation = {
   id: number;
@@ -63,6 +65,7 @@ export type Command =
   | { type: "trade"; commodity: Commodity; side: "buy" | "sell" }
   | { type: "deploy"; from: number; to: number; percent: number }
   | { type: "upgrade"; region: number }
+  | { type: "fortify"; region: number }
   | { type: "tanks" }
   | { type: "research"; branch: Branch }
   | { type: "retreat"; operation: number };
@@ -216,6 +219,7 @@ export const population = (r: Region) =>
 export const defense = (r: Region) =>
   r.terrain === "mountain" ? 1.4 : r.terrain === "forest" ? 1.15 : 1;
 export const upgradeCost = (r: Region) => 250 + r.level * 200;
+export const fortifyCost = (r: Region) => 180 + r.fort * 120;
 export const researchCost = (n: Nation, b: Branch) => 500 + n.tech[b] * 450;
 export function createGame(seed = 42, player = 0): Game {
   const starts = [17, 0, 14, 6, 28, 34],
@@ -246,6 +250,8 @@ export function createGame(seed = 42, player = 0): Game {
       level: owner >= 0 ? 2 : 1,
       terrain: id % 7 === 3 ? "mountain" : id % 3 === 2 ? "forest" : "plain",
       upgrade: null,
+      fort: 0,
+      fortification: null,
       neighbors: [
         row > 0 ? id - 7 : -1,
         row < 4 ? id + 7 : -1,
@@ -453,8 +459,8 @@ export function issue(
       return fail(
         "Vyber sousední cizí území. Mezi vlastními regiony se armáda nepřesouvá.",
       );
-    if (!Number.isFinite(c.percent) || c.percent < 10 || c.percent > 90)
-      return fail("Na útok vyčleň 10–90 % volné armády.");
+    if (!Number.isFinite(c.percent) || c.percent < 10 || c.percent > 100)
+      return fail("Na útok vyčleň 10–100 % volné armády.");
     if (g.operations.some((o) => o.to === to.id))
       return fail("Do tohoto území už směřuje operace.");
     const free = available(g, actor),
@@ -482,12 +488,22 @@ export function issue(
     const r = g.regions[c.region];
     if (!r || r.owner !== actor)
       return fail("Vylepšovat můžeš jen vlastní území.");
-    if (r.upgrade || r.level >= 5)
+    if (r.upgrade || r.level >= 20)
       return fail("Vylepšení už probíhá nebo je budova na maximu.");
     if (n.money < upgradeCost(r)) return fail("Nedostatek peněz.");
     n.money -= upgradeCost(r);
     const total = Math.round(35 / (1 + n.tech.industry * 0.12));
     r.upgrade = { total, remaining: total };
+  } else if (c.type === "fortify") {
+    const r = g.regions[c.region];
+    if (!r || r.owner !== actor) return fail("Opevnit můžeš jen vlastní provincii.");
+    if (r.fortification || r.fort >= 20)
+      return fail("Opevnění už probíhá nebo dosáhlo úrovně 20.");
+    const price = fortifyCost(r);
+    if (n.money < price) return fail("Nedostatek peněz na opevnění.");
+    n.money -= price;
+    const total = Math.round(25 / (1 + n.tech.industry * 0.1));
+    r.fortification = { total, remaining: total };
   } else if (c.type === "tanks") {
     const reason = tankBlocker(g, actor);
     if (reason) return fail(reason);
@@ -552,7 +568,8 @@ function loseReserve(g: Game, id: number, damage: number) {
   );
 }
 export function defenseStrength(g: Game, r: Region) {
-  if (r.owner < 0) return (35 + r.level * 8) * defense(r);
+  const fortBonus = 1 + r.fort * 0.08;
+  if (r.owner < 0) return (35 + r.level * 8) * defense(r) * fortBonus;
   const fronts = Math.max(
     1,
     g.operations.filter(
@@ -565,6 +582,7 @@ export function defenseStrength(g: Game, r: Region) {
   return (
     (strength(available(g, r.owner)) / fronts) *
     defense(r) *
+    fortBonus *
     (1 + g.nations[r.owner].tech.military * 0.12)
   );
 }
@@ -629,6 +647,12 @@ export function tick(g: Game, bots = true): void {
           ".",
       );
     }
+  for (const r of g.regions)
+    if (r.fortification && --r.fortification.remaining <= 0) {
+      r.fort++;
+      r.fortification = null;
+      event(g, r.name + ": opevnění dokončeno, úroveň " + r.fort + ".");
+    }
   for (const o of g.operations)
     if (o.phase === "march") {
       o.progress = Math.min(
@@ -651,12 +675,15 @@ export function tick(g: Game, bots = true): void {
     const attack =
         strength(o.army) * (1 + g.nations[o.owner].tech.military * 0.12),
       defend =
-        r.owner < 0 ? o.neutralResistance * defense(r) : defenseStrength(g, r);
+        r.owner < 0
+          ? o.neutralResistance * defense(r) * (1 + r.fort * 0.08)
+          : defenseStrength(g, r);
     loseOperation(g, o, defend * 0.016);
     if (r.owner < 0)
       o.neutralResistance = Math.max(
         0,
-        o.neutralResistance - (attack * 0.016) / defense(r),
+        o.neutralResistance -
+          (attack * 0.016) / (defense(r) * (1 + r.fort * 0.08)),
       );
     else loseReserve(g, r.owner, (attack * 0.016) / defense(r));
     o.progress = Math.min(
@@ -673,6 +700,8 @@ export function tick(g: Game, bots = true): void {
     } else if (o.progress >= 1 || (r.owner < 0 && o.neutralResistance < 2)) {
       r.owner = o.owner;
       r.upgrade = null;
+      r.fortification = null;
+      r.fort = Math.max(0, r.fort - 2);
       done.add(o.id);
       event(
         g,
@@ -769,13 +798,20 @@ export function botTurn(g: Game, id: number) {
   if (!tankBlocker(g, id) && n.money > 400) issue(g, id, { type: "tanks" });
   if (n.money > 850) {
     const upgrades = rs
-      .filter((r) => r.level < 5 && !r.upgrade)
+      .filter((r) => r.level < 20 && !r.upgrade)
       .sort(
         (a, b) =>
           (a.facility === "city" ? 0 : 1) - (b.facility === "city" ? 0 : 1) ||
           a.level - b.level,
       );
-    if (upgrades.length && rand(g) < 0.6)
+    const border = rs.filter((r) =>
+      r.neighbors.some((next) => g.regions[next].owner !== id),
+    );
+    if (border.length && rand(g) < 0.25) {
+      const r = border.sort((a, b) => a.fort - b.fort)[0];
+      if (!r.fortification && r.fort < 20)
+        issue(g, id, { type: "fortify", region: r.id });
+    } else if (upgrades.length && rand(g) < 0.6)
       issue(g, id, { type: "upgrade", region: upgrades[0].id });
     else if (!n.research) {
       const options = BRANCHES.filter((b) => n.tech[b] < 3);
@@ -920,14 +956,20 @@ export function restore(raw: string): Game | null {
           q.remaining <= q.total);
     for (let i = 0; i < 35; i++) {
       const r = g.regions[i];
+      if (r && r.fort === undefined) r.fort = 0;
+      if (r && r.fortification === undefined) r.fortification = null;
       if (
         !r ||
         r.id !== i ||
         !(r.owner === -1 || id(r.owner)) ||
         !Number.isInteger(r.level) ||
         r.level < 1 ||
-        r.level > 5 ||
-        !queue(r.upgrade)
+        r.level > 20 ||
+        !Number.isInteger(r.fort) ||
+        r.fort < 0 ||
+        r.fort > 20 ||
+        !queue(r.upgrade) ||
+        !queue(r.fortification)
       )
         return null;
       Object.assign(r, {
