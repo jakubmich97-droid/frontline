@@ -51,6 +51,7 @@ test("UI: select target, issue attack, simulate, save and reload", () => {
   const ui = setup();
   assert.equal(ui.w.document.querySelectorAll("[data-region]").length, 35);
   assert.ok(ui.w.document.querySelectorAll(".state-border").length > 20);
+  assert.ok(ui.w.document.querySelectorAll(".neutral-garrison").length > 20);
   assert.equal(ui.w.document.querySelectorAll(".map-army").length, 6);
   assert.match(ui.find(".live-state").textContent, /POZASTAVENO/);
   ui.click('[data-region="16"]');
@@ -86,6 +87,8 @@ test("UI: upgrade, research, help, new faction and army slider", () => {
   assert.match(ui.find(".your-nation").textContent, /Severní svaz/);
   ui.click('[data-action="upgrade"]');
   assert.ok(ui.find(".project"));
+  ui.click('[data-action="fortify"]');
+  assert.match(ui.find(".fort-card").textContent, /Stavba/);
   const range = ui.find("#army-size");
   range.value = "70";
   range.dispatchEvent(new ui.w.Event("input", { bubbles: true }));
@@ -101,7 +104,11 @@ test("UI: upgrade, research, help, new faction and army slider", () => {
   ui.click('[data-action="trade:buy:grain"]');
   assert.match(ui.find(".panel-body").textContent, /Obilí/);
   ui.click('[data-region="1"]');
-  ui.click('[data-action="force:90"]');
+  const attack = ui.find("#attack-size");
+  attack.value = "100";
+  attack.dispatchEvent(new ui.w.Event("input", { bubbles: true }));
+  attack.dispatchEvent(new ui.w.Event("change", { bubbles: true }));
+  assert.match(ui.find("#attack-size-label").textContent, /100 %/);
   ui.click('[data-action="deploy"]');
   ui.click('[data-action="tab:operations"]');
   assert.match(ui.find(".panel-body").textContent, /Vlastní výprava/);
