@@ -1,7 +1,8 @@
 // One national army; operations reserve units, never duplicate them.
 export type Units = { infantry: number; tanks: number };
 export type Branch = "military" | "industry" | "logistics";
-export type Facility = "city" | "iron" | "coal" | "oil" | "port";
+export type Commodity = "iron" | "coal" | "oil" | "grain";
+export type Facility = "city" | Commodity | "port";
 type Queue = { remaining: number; total: number };
 export type Region = {
   id: number;
@@ -25,7 +26,7 @@ export type Nation = {
   money: number;
   army: Units;
   armyTarget: number;
-  resources: { iron: number; coal: number; oil: number };
+  resources: Record<Commodity, number>;
   tankQueue: Queue | null;
   tech: Record<Branch, number>;
   research: (Queue & { branch: Branch }) | null;
@@ -43,7 +44,7 @@ export type Operation = {
   neutralResistance: number;
 };
 export type Game = {
-  version: 2;
+  version: 3;
   time: number;
   seed: number;
   player: number;
@@ -59,6 +60,7 @@ export type Game = {
 export type Command =
   | { type: "armyTarget"; percent: number }
   | { type: "botAggression"; percent: number }
+  | { type: "trade"; commodity: Commodity; side: "buy" | "sell" }
   | { type: "deploy"; from: number; to: number; percent: number }
   | { type: "upgrade"; region: number }
   | { type: "tanks" }
@@ -100,6 +102,13 @@ export const FACILITIES: Record<
     description:
       "Dodává palivo celé armádě. Vlastní těžba snižuje dovozní náklady.",
   },
+  grain: {
+    name: "Obilné pole",
+    short: "OBILÍ",
+    symbol: "◆",
+    description:
+      "Produkuje obilí pro obyvatelstvo. Vyšší populace znamená vyšší spotřebu.",
+  },
   port: {
     name: "Přístav",
     short: "PŘÍSTAV",
@@ -109,6 +118,13 @@ export const FACILITIES: Record<
   },
 };
 export const TANK_COST = { money: 250, iron: 60, coal: 40, count: 5, crew: 20 };
+export const TRADE = {
+  iron: { name: "Železo", symbol: "Fe", price: 5 },
+  coal: { name: "Uhlí", symbol: "C", price: 4 },
+  oil: { name: "Ropa", symbol: "◈", price: 6 },
+  grain: { name: "Obilí", symbol: "◆", price: 3 },
+} as const;
+export const TRADE_LOT = 25;
 export const FACTIONS = [
   { name: "Jantarová unie", color: "#b6df85", personality: "balanced" },
   { name: "Severní svaz", color: "#7fbece", personality: "cautious" },
@@ -142,6 +158,17 @@ const names = [
   "Dubový důl",
   "Bílá skála",
   "Jižní záliv",
+  "Úrodná nížina",
+  "Rudé údolí",
+  "Severní obilnice",
+  "Mlžné pobřeží",
+  "Královský přístav",
+  "Zlaté pláně",
+  "Ropný hřbet",
+  "Uhelná pánev",
+  "Větrné město",
+  "Východní obilnice",
+  "Ocelový mys",
 ];
 const facilities: Facility[] = [
   "city",
@@ -150,7 +177,7 @@ const facilities: Facility[] = [
   "oil",
   "iron",
   "city",
-  "port",
+  "city",
   "coal",
   "city",
   "iron",
@@ -161,12 +188,23 @@ const facilities: Facility[] = [
   "city",
   "coal",
   "oil",
-  "port",
+  "city",
   "oil",
   "city",
   "iron",
   "coal",
   "coal",
+  "port",
+  "grain",
+  "iron",
+  "grain",
+  "port",
+  "city",
+  "grain",
+  "oil",
+  "coal",
+  "city",
+  "grain",
   "city",
 ];
 export const strength = (a: Units) => a.infantry + a.tanks * 6;
@@ -180,19 +218,19 @@ export const defense = (r: Region) =>
 export const upgradeCost = (r: Region) => 250 + r.level * 200;
 export const researchCost = (n: Nation, b: Branch) => 500 + n.tech[b] * 450;
 export function createGame(seed = 42, player = 0): Game {
-  const starts = [14, 0, 12, 5, 19, 23],
-    points = Array.from({ length: 5 }, (_, row) =>
-      Array.from({ length: 7 }, (_, col) => [
-        78 +
-          col * 126 +
+  const starts = [17, 0, 14, 6, 28, 34],
+    points = Array.from({ length: 6 }, (_, row) =>
+      Array.from({ length: 8 }, (_, col) => [
+        62 +
+          col * 114 +
           Math.sin(col * 4 + row * 8) *
-            (col === 0 || col === 6 || row === 0 || row === 4 ? 17 : 23),
-        74 + row * 125 + Math.cos(col * 5 + row * 3) * 20,
+            (col === 0 || col === 7 || row === 0 || row === 5 ? 12 : 18),
+        62 + row * 108 + Math.cos(col * 5 + row * 3) * 15,
       ]),
     );
   const regions = names.map((name, id): Region => {
-    const row = Math.floor(id / 6),
-      col = id % 6,
+    const row = Math.floor(id / 7),
+      col = id % 7,
       owner = starts.indexOf(id),
       v = [
         points[row][col],
@@ -209,10 +247,10 @@ export function createGame(seed = 42, player = 0): Game {
       terrain: id % 7 === 3 ? "mountain" : id % 3 === 2 ? "forest" : "plain",
       upgrade: null,
       neighbors: [
-        row > 0 ? id - 6 : -1,
-        row < 3 ? id + 6 : -1,
+        row > 0 ? id - 7 : -1,
+        row < 4 ? id + 7 : -1,
         col > 0 ? id - 1 : -1,
-        col < 5 ? id + 1 : -1,
+        col < 6 ? id + 1 : -1,
       ].filter((i) => i >= 0),
       x: v.reduce((s, p) => s + p[0], 0) / 4,
       y: v.reduce((s, p) => s + p[1], 0) / 4,
@@ -220,7 +258,7 @@ export function createGame(seed = 42, player = 0): Game {
     };
   });
   return {
-    version: 2,
+    version: 3,
     time: 0,
     seed: seed >>> 0,
     player,
@@ -232,7 +270,7 @@ export function createGame(seed = 42, player = 0): Game {
       money: 900,
       army: { infantry: 160, tanks: 0 },
       armyTarget: 35,
-      resources: { iron: 0, coal: 0, oil: 30 },
+      resources: { iron: 0, coal: 0, oil: 30, grain: 40 },
       tankQueue: null,
       tech: { military: 0, industry: 0, logistics: 0 },
       research: null,
@@ -285,12 +323,15 @@ export const targetPersonnel = (
   percent = g.nations[id].armyTarget,
 ) => Math.floor((capacity(g, id) * percent) / 100);
 export function production(g: Game, id: number) {
-  const p = { iron: 0, coal: 0, oil: 0, port: 0 },
+  const p = { iron: 0, coal: 0, oil: 0, grain: 0, port: 0 },
     boost = 1 + g.nations[id].tech.industry * 0.16;
   for (const r of owned(g, id))
     if (r.facility === "port") p.port += r.level;
     else if (r.facility !== "city")
-      p[r.facility] += r.level * (r.facility === "oil" ? 1.2 : 0.8) * boost;
+      p[r.facility] +=
+        r.level *
+        (r.facility === "grain" ? 2.5 : r.facility === "oil" ? 1.2 : 0.8) *
+        boost;
   return p;
 }
 export function runningCost(g: Game, id: number, a: Units) {
@@ -329,6 +370,10 @@ export function economy(g: Game, id: number) {
       ) *
       (1 + n.tech.industry * 0.16),
     costs = runningCost(g, id, n.army),
+    totalPopulation = rs.reduce((s, r) => s + population(r), 0),
+    grainUse = totalPopulation / 5000,
+    grainBalance = p.grain - grainUse,
+    foodCovered = n.resources.grain + p.grain >= grainUse,
     target = targetPersonnel(g, id),
     reservedCrew = n.tankQueue ? 20 : 0,
     desiredInfantry = Math.max(0, target - 4 * n.army.tanks - reservedCrew),
@@ -338,10 +383,13 @@ export function economy(g: Game, id: number) {
     });
   return {
     ...costs,
-    income,
+    income: income * (foodCovered ? 1 : 0.65),
     upkeep: costs.salary + costs.oilCost,
-    net: income - costs.salary - costs.oilCost,
-    population: rs.reduce((s, r) => s + population(r), 0),
+    net: income * (foodCovered ? 1 : 0.65) - costs.salary - costs.oilCost,
+    population: totalPopulation,
+    grainUse,
+    grainBalance,
+    foodCovered,
     capacity: capacity(g, id),
     target,
     desiredInfantry,
@@ -377,6 +425,21 @@ export function issue(
     if (actor !== g.player || !Number.isFinite(c.percent) || c.percent < 0 || c.percent > 100)
       return fail("Agresivita botů musí být 0–100 %.");
     g.botAggression = Math.round(c.percent);
+  } else if (c.type === "trade") {
+    if (!Object.hasOwn(TRADE, c.commodity)) return fail("Neznámá komodita.");
+    const price = TRADE[c.commodity].price,
+      portDiscount = Math.min(0.35, production(g, actor).port * 0.08),
+      total = TRADE_LOT * price * (c.side === "buy" ? 1 - portDiscount : 0.7);
+    if (c.side === "buy") {
+      if (n.money < total) return fail("Nedostatek peněz na nákup.");
+      n.money -= total;
+      n.resources[c.commodity] += TRADE_LOT;
+    } else {
+      if (n.resources[c.commodity] < TRADE_LOT)
+        return fail("K prodeji potřebuješ alespoň 25 jednotek.");
+      n.resources[c.commodity] -= TRADE_LOT;
+      n.money += total;
+    }
   } else if (c.type === "deploy") {
     const from = g.regions[c.from],
       to = g.regions[c.to];
@@ -513,6 +576,10 @@ export function tick(g: Game, bots = true): void {
     const e = economy(g, n.id);
     n.resources.iron += e.production.iron;
     n.resources.coal += e.production.coal;
+    n.resources.grain = Math.max(
+      0,
+      n.resources.grain + e.production.grain - e.grainUse,
+    );
     n.resources.oil = Math.max(
       0,
       n.resources.oil + e.production.oil - e.oilUse,
@@ -647,6 +714,14 @@ export function botTurn(g: Game, id: number) {
     threat = g.operations.some(
       (o) => g.regions[o.to].owner === id && o.owner !== id,
     );
+  if (n.resources.grain < e.grainUse * 8 && n.money > TRADE_LOT * TRADE.grain.price)
+    issue(g, id, { type: "trade", commodity: "grain", side: "buy" });
+  if (n.resources.grain > e.grainUse * 45 + TRADE_LOT)
+    issue(g, id, { type: "trade", commodity: "grain", side: "sell" });
+  if (n.resources.iron >= 60 + TRADE_LOT * 2)
+    issue(g, id, { type: "trade", commodity: "iron", side: "sell" });
+  if (n.resources.coal >= 40 + TRADE_LOT * 2)
+    issue(g, id, { type: "trade", commodity: "coal", side: "sell" });
   issue(g, id, {
     type: "armyTarget",
     percent:
@@ -779,14 +854,40 @@ function migrate(old: any): Game | null {
   );
   return g;
 }
+function migrateV2(old: any): Game | null {
+  if (!Array.isArray(old.regions) || old.regions.length !== 24 || !Array.isArray(old.nations))
+    return null;
+  const g = createGame(old.seed, old.player);
+  g.time = old.time;
+  g.botAggression = old.botAggression ?? 60;
+  g.log = Array.isArray(old.log) ? old.log : g.log;
+  g.nextId = 1;
+  for (let i = 0; i < 24; i++) {
+    g.regions[i].owner = old.regions[i].owner;
+    g.regions[i].level = old.regions[i].level;
+  }
+  for (let i = 0; i < 6; i++) {
+    const source = old.nations[i], target = g.nations[i];
+    if (!source || !validArmy(source.army)) return null;
+    target.money = source.money;
+    target.army = source.army;
+    target.armyTarget = source.armyTarget;
+    target.resources = { ...source.resources, grain: source.resources.grain ?? 40 };
+    target.tech = source.tech;
+    target.research = source.research;
+    target.tankQueue = source.tankQueue;
+  }
+  event(g, "Mapa rozšířena na 35 provincií. Staré operace byly ukončeny a přibylo obilí.");
+  return g;
+}
 export function restore(raw: string): Game | null {
   try {
     const parsed = JSON.parse(raw),
-      g: Game = parsed.version === 1 ? migrate(parsed) : parsed;
-    if (!g || g.version !== 2) return null;
+      g: Game = parsed.version === 1 ? migrate(parsed) : parsed.version === 2 ? migrateV2(parsed) : parsed;
+    if (!g || g.version !== 3) return null;
     if (g.botAggression === undefined) g.botAggression = 60;
     const id = (x: number) => Number.isInteger(x) && x >= 0 && x < 6,
-      regionId = (x: number) => Number.isInteger(x) && x >= 0 && x < 24;
+      regionId = (x: number) => Number.isInteger(x) && x >= 0 && x < 35;
     if (
       !id(g.player) ||
       !Number.isInteger(g.time) ||
@@ -795,11 +896,11 @@ export function restore(raw: string): Game | null {
       !Number.isInteger(g.nextId) ||
       g.nextId < 1 ||
       !Array.isArray(g.regions) ||
-      g.regions.length !== 24 ||
+      g.regions.length !== 35 ||
       !Array.isArray(g.nations) ||
       g.nations.length !== 6 ||
       !Array.isArray(g.operations) ||
-      g.operations.length > 24 ||
+      g.operations.length > 35 ||
       !Array.isArray(g.defeated) ||
       !g.defeated.every(id) ||
       !(g.winner === null || id(g.winner)) ||
@@ -817,7 +918,7 @@ export function restore(raw: string): Game | null {
           nonneg(q.total) &&
           q.total > 0 &&
           q.remaining <= q.total);
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 35; i++) {
       const r = g.regions[i];
       if (
         !r ||
@@ -849,7 +950,7 @@ export function restore(raw: string): Game | null {
         !nonneg(n.armyTarget) ||
         n.armyTarget > 100 ||
         !n.resources ||
-        !["iron", "coal", "oil"].every((k) =>
+        !["iron", "coal", "oil", "grain"].every((k) =>
           nonneg(n.resources[k as "iron"]),
         ) ||
         !n.tech ||
