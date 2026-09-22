@@ -42,7 +42,7 @@ test("slider recruits gradually for money and demobilizes only idle units", () =
   tick(g, false);
   assert.equal(g.nations[0].army.infantry, 166);
   close(g.nations[0].money, m + e.net - 18);
-  issue(g, 0, { type: "deploy", from: 14, to: 13, percent: 90 });
+  issue(g, 0, { type: "deploy", from: 17, to: 16, percent: 90 });
   const busy = deployed(g, 0).infantry;
   issue(g, 0, { type: "armyTarget", percent: 0 });
   for (let i = 0; i < 8; i++) tick(g, false);
@@ -63,12 +63,12 @@ test("mobilization validates inputs; no money means no free recruitment", () => 
 test("city upgrade increases population and manpower only on completion", () => {
   const g = createGame(),
     before = capacity(g, 0);
-  assert.ok(issue(g, 0, { type: "upgrade", region: 14 }).ok);
-  assert.equal(issue(g, 0, { type: "upgrade", region: 14 }).ok, false);
+  assert.ok(issue(g, 0, { type: "upgrade", region: 17 }).ok);
+  assert.equal(issue(g, 0, { type: "upgrade", region: 17 }).ok, false);
   assert.equal(capacity(g, 0), before);
   for (let i = 0; i < 35; i++) tick(g, false);
   assert.equal(capacity(g, 0), before + 320);
-  assert.equal(g.regions[14].level, 3);
+  assert.equal(g.regions[17].level, 3);
 });
 test("mines produce separate national stocks, enemies do not receive them", () => {
   const g = createGame();
@@ -140,7 +140,7 @@ test("port discounts automatic oil purchases and earns money", () => {
   const g = createGame();
   g.nations[0].resources.oil = 0;
   const before = economy(g, 0);
-  g.regions[17].owner = 0;
+  g.regions[11].owner = 0;
   const after = economy(g, 0);
   assert.ok(after.oilPrice < before.oilPrice);
   assert.ok(after.income > before.income);
@@ -154,25 +154,25 @@ test("projected long-run costs increase with army size", () => {
 test("simultaneous attacks reserve without duplicating national units", () => {
   const g = createGame();
   const total = g.nations[0].army.infantry;
-  issue(g, 0, { type: "deploy", from: 14, to: 13, percent: 60 });
-  issue(g, 0, { type: "deploy", from: 14, to: 15, percent: 60 });
+  issue(g, 0, { type: "deploy", from: 17, to: 16, percent: 60 });
+  issue(g, 0, { type: "deploy", from: 17, to: 18, percent: 60 });
   assert.equal(g.nations[0].army.infantry, total);
   close(available(g, 0).infantry + deployed(g, 0).infantry, total);
   assert.ok(deployed(g, 0).infantry <= total);
   assert.equal(
-    issue(g, 0, { type: "deploy", from: 14, to: 13, percent: 60 }).ok,
+    issue(g, 0, { type: "deploy", from: 17, to: 16, percent: 60 }).ok,
     false,
   );
 });
 test("shared national defense gets weaker when an expedition leaves", () => {
   const g = createGame(),
-    before = defenseStrength(g, g.regions[14]);
-  issue(g, 0, { type: "deploy", from: 14, to: 13, percent: 60 });
-  assert.ok(defenseStrength(g, g.regions[14]) < before);
+    before = defenseStrength(g, g.regions[17]);
+  issue(g, 0, { type: "deploy", from: 17, to: 16, percent: 60 });
+  assert.ok(defenseStrength(g, g.regions[17]) < before);
 });
 test("withdrawal subtracts casualties once and releases reservation", () => {
   const g = createGame();
-  issue(g, 0, { type: "deploy", from: 14, to: 13, percent: 60 });
+  issue(g, 0, { type: "deploy", from: 17, to: 16, percent: 60 });
   const o = g.operations[0],
     loss = o.army.infantry * 0.2;
   assert.ok(issue(g, 0, { type: "retreat", operation: o.id }).ok);
@@ -182,17 +182,41 @@ test("withdrawal subtracts casualties once and releases reservation", () => {
 });
 test("capture changes mine ownership and returns survivors to national availability", () => {
   const g = createGame();
-  issue(g, 0, { type: "deploy", from: 14, to: 13, percent: 90 });
+  issue(g, 0, { type: "deploy", from: 17, to: 16, percent: 90 });
   for (let i = 0; i < 100; i++) tick(g, false);
-  assert.equal(g.regions[13].owner, 0);
+  assert.equal(g.regions[16].owner, 0);
   assert.equal(g.operations.length, 0);
   close(available(g, 0).infantry, g.nations[0].army.infantry);
-  assert.ok(g.nations[0].resources.iron > 0);
+  assert.ok(production(g, 0).oil > 0);
+});
+test("grain production feeds population and shortage reduces income", () => {
+  const g = createGame(), n = g.nations[0];
+  n.resources.grain = 0;
+  const hungry = economy(g, 0);
+  assert.ok(hungry.grainUse > 0);
+  assert.equal(hungry.foodCovered, false);
+  g.regions[24].owner = 0;
+  n.resources.grain = 100;
+  const fed = economy(g, 0);
+  assert.ok(fed.production.grain > 0);
+  assert.equal(fed.foodCovered, true);
+  assert.ok(fed.income > hungry.income);
+});
+test("market buys and sells fixed commodity lots", () => {
+  const g = createGame(), n = g.nations[0], money = n.money;
+  assert.ok(issue(g, 0, { type: "trade", commodity: "iron", side: "buy" }).ok);
+  assert.equal(n.resources.iron, 25);
+  assert.ok(n.money < money);
+  const afterBuy = n.money;
+  assert.ok(issue(g, 0, { type: "trade", commodity: "iron", side: "sell" }).ok);
+  assert.equal(n.resources.iron, 0);
+  assert.ok(n.money > afterBuy && n.money < money);
+  assert.equal(issue(g, 0, { type: "trade", commodity: "iron", side: "sell" }).ok, false);
 });
 test("legacy migration pools garrisons and expeditions without loss; refunds queues", () => {
   const base = createGame(),
     legacy: any = { ...base, version: 1 };
-  legacy.regions = base.regions.map((r) => ({
+  legacy.regions = base.regions.slice(0, 24).map((r) => ({
     ...r,
     army: { infantry: r.owner >= 0 ? 110 : 20, tanks: r.owner >= 0 ? 5 : 0 },
     industry: 2,
@@ -201,11 +225,11 @@ test("legacy migration pools garrisons and expeditions without loss; refunds que
   }));
   legacy.regions[13].owner = 0;
   legacy.regions[13].army = { infantry: 15, tanks: 2 };
-  legacy.regions[14].queue = { kind: "infantry", remaining: 10, total: 16 };
+  legacy.regions[17].queue = { kind: "infantry", remaining: 10, total: 16 };
   legacy.operations = [{ owner: 0, army: { infantry: 20, tanks: 1 } }];
   const migrated = restore(JSON.stringify(legacy));
   assert.ok(migrated);
-  assert.equal(migrated.version, 2);
+  assert.equal(migrated.version, 3);
   assert.equal(migrated.nations[0].army.infantry, 145);
   assert.equal(migrated.nations[0].army.tanks, 8);
   assert.equal(migrated.nations[0].money, 1000);
@@ -224,7 +248,7 @@ test("roundtrip deterministic, reject malformed saves and overbooked operations"
   assert.deepEqual(h, g);
   assert.equal(restore("{bad"), null);
   const bad = createGame();
-  issue(bad, 0, { type: "deploy", from: 14, to: 13, percent: 60 });
+  issue(bad, 0, { type: "deploy", from: 17, to: 16, percent: 60 });
   bad.operations[0].army.infantry = 99999;
   assert.equal(restore(serialize(bad)), null);
 });
