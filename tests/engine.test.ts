@@ -63,6 +63,7 @@ test("mobilization validates inputs; no money means no free recruitment", () => 
 test("city upgrade increases population and manpower only on completion", () => {
   const g = createGame(),
     before = capacity(g, 0);
+  g.nations[0].resources.grain = 1000;
   assert.ok(issue(g, 0, { type: "upgrade", region: 17 }).ok);
   assert.equal(issue(g, 0, { type: "upgrade", region: 17 }).ok, false);
   assert.equal(capacity(g, 0), before);
@@ -106,6 +107,8 @@ test("mines produce separate national stocks, enemies do not receive them", () =
 test("tank order needs BOTH materials and money; pays once and finishes once", () => {
   const g = createGame(),
     n = g.nations[0];
+  n.resources.oil = 1000;
+  n.resources.grain = 1000;
   assert.ok(tankBlocker(g, 0));
   assert.equal(issue(g, 0, { type: "tanks" }).ok, false);
   n.resources.iron = 60;
@@ -126,6 +129,8 @@ test("tank order needs BOTH materials and money; pays once and finishes once", (
 test("tank production reserves crew capacity and slider never deletes tanks", () => {
   const g = createGame(),
     n = g.nations[0];
+  n.resources.oil = 1000;
+  n.resources.grain = 1000;
   n.resources.iron = 60;
   n.resources.coal = 40;
   n.army.infantry = 620;
@@ -140,23 +145,21 @@ test("tank production reserves crew capacity and slider never deletes tanks", ()
   assert.equal(n.army.tanks, 5);
   assert.ok(economy(g, 0).upkeep > 0);
 });
-test("oil stocks cover shortfall, imports cost money when empty, domestic oil reduces costs", () => {
+test("oil is never imported silently; shortage destroys tanks unless auto-buy is enabled", () => {
   const g = createGame(),
     n = g.nations[0];
   n.resources.oil = 0;
-  const imported = economy(g, 0);
-  assert.ok(imported.oilCost > 0);
-  close(imported.oilCost, imported.oilUse * 3);
-  n.resources.oil = 0.1;
-  close(economy(g, 0).importNow, Math.max(0, imported.oilUse - 0.1));
-  n.resources.oil = 20;
-  assert.equal(economy(g, 0).oilCost, 0);
+  n.army.tanks = 5;
+  const money = n.money;
   tick(g, false);
-  assert.ok(n.resources.oil < 20);
+  assert.ok(n.army.tanks < 5);
+  assert.ok(n.money <= money + economy(g, 0).income);
+  n.army.tanks = 5;
   n.resources.oil = 0;
-  g.regions[16].owner = 0;
-  assert.equal(economy(g, 0).oilCost, 0);
-  assert.ok(economy(g, 0).upkeep < imported.upkeep);
+  n.autoTrade.oil.buy = true;
+  tick(g, false);
+  assert.equal(n.army.tanks, 5);
+  assert.ok(n.resources.oil > 0);
 });
 test("port discounts automatic oil purchases and earns money", () => {
   const g = createGame();
@@ -224,6 +227,17 @@ test("grain production feeds population and shortage reduces income", () => {
   assert.equal(fed.foodCovered, true);
   assert.ok(fed.income > hungry.income);
 });
+test("people die without grain and recover slowly after supplies return", () => {
+  const g = createGame(), n = g.nations[0];
+  n.resources.grain = 0;
+  const before = economy(g, 0).population;
+  tick(g, false);
+  assert.ok(economy(g, 0).population < before);
+  const loss = n.populationLoss;
+  n.resources.grain = 100;
+  tick(g, false);
+  assert.ok(n.populationLoss < loss);
+});
 test("market buys and sells fixed commodity lots", () => {
   const g = createGame(), n = g.nations[0], money = n.money;
   assert.ok(issue(g, 0, { type: "trade", commodity: "iron", side: "buy" }).ok);
@@ -234,6 +248,23 @@ test("market buys and sells fixed commodity lots", () => {
   assert.equal(n.resources.iron, 0);
   assert.ok(n.money > afterBuy && n.money < money);
   assert.equal(issue(g, 0, { type: "trade", commodity: "iron", side: "sell" }).ok, false);
+});
+test("auto trade only runs when enabled", () => {
+  const g = createGame(), n = g.nations[0];
+  n.resources.grain = 0;
+  tick(g, false);
+  assert.equal(n.resources.grain, 0);
+  assert.ok(issue(g, 0, { type: "autoTrade", commodity: "grain", side: "buy" }).ok);
+  tick(g, false);
+  assert.ok(n.resources.grain > 0);
+});
+test("reinforcements reserve free national units in an existing attack", () => {
+  const g = createGame();
+  issue(g, 0, { type: "deploy", from: 17, to: 16, percent: 30 });
+  const o = g.operations[0], before = o.army.infantry;
+  assert.ok(issue(g, 0, { type: "reinforce", operation: o.id, percent: 50 }).ok);
+  assert.ok(o.army.infantry > before);
+  close(available(g, 0).infantry + deployed(g, 0).infantry, g.nations[0].army.infantry);
 });
 test("legacy migration pools garrisons and expeditions without loss; refunds queues", () => {
   const base = createGame(),
