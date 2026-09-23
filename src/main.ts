@@ -48,7 +48,9 @@ let game: Game = createGame(),
   armyDraft: number | null = null,
   mapZoom = 1,
   mapPanX = -150,
-  mapPanY = -70;
+  mapPanY = -70,
+  mapMode: "select" | "upgrade" | "fortify" = "select",
+  panelScroll = 0;
 let accumulator = 0,
   last = performance.now(),
   renderElapsed = 0;
@@ -142,7 +144,7 @@ function mapMarkup() {
       return soldierA + soldierB + tank;
     }).join("");
   }).join("");
-  return `<svg class="world-map" viewBox="0 0 1350 900" role="group" aria-label="Strategická mapa, ${playableRegions(game).length} obyvatelných provincií"><defs><pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#24404e" stroke-width=".5"/></pattern>${gradients}</defs><rect width="1350" height="900" fill="url(#grid)"/><text x="28" y="27" class="map-note">JANTAROVÁ EVROPA / KOMODITNÍ MAPA</text><text x="1320" y="27" class="map-note">N ↑</text><text x="118" y="450" text-anchor="middle" class="sea-label">ZÁPADNÍ MOŘE</text><text x="675" y="875" text-anchor="middle" class="sea-label">JIŽNÍ MOŘE</text>
+  return `<svg class="world-map" viewBox="0 0 1350 900" role="group" aria-label="Strategická mapa, ${playableRegions(game).length} obyvatelných provincií"><defs><linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17394a"/><stop offset=".55" stop-color="#0d2a3a"/><stop offset="1" stop-color="#081e2d"/></linearGradient><radialGradient id="ocean-light"><stop offset="0" stop-color="#3b6d7e" stop-opacity=".22"/><stop offset="1" stop-color="#102c3c" stop-opacity="0"/></radialGradient><pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse"><path d="M64 0H0V64" fill="none" stroke="#7ba0aa" stroke-opacity=".09" stroke-width=".7"/></pattern><pattern id="contours" width="180" height="110" patternUnits="userSpaceOnUse"><path d="M-20 72C32 25 92 118 205 42M-15 91C48 48 116 137 204 69" fill="none" stroke="#9bc0c7" stroke-opacity=".055" stroke-width="1.2"/></pattern><filter id="land-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#02090d" flood-opacity=".72"/></filter>${gradients}</defs><rect width="1350" height="900" fill="url(#ocean)"/><rect width="1350" height="900" fill="url(#ocean-light)"/><rect width="1350" height="900" fill="url(#contours)"/><rect width="1350" height="900" fill="url(#grid)"/><path class="sea-current" d="M15 210C210 150 360 240 510 175M840 760C1010 690 1150 790 1340 710M20 625C180 570 245 640 350 600"/><text x="28" y="27" class="map-note">JANTAROVÁ EVROPA / KOMODITNÍ MAPA</text><text x="1320" y="27" class="map-note">N ↑</text><text x="118" y="450" text-anchor="middle" class="sea-label">ZÁPADNÍ MOŘE</text><text x="675" y="875" text-anchor="middle" class="sea-label">JIŽNÍ MOŘE</text>
 ${game.regions
   .map((r) => {
     if (r.geography === "sea") return "";
@@ -153,7 +155,7 @@ ${game.regions
     const color = r.owner < 0 ? "#64757b" : game.nations[r.owner].color,
       f = FACILITIES[r.facility], battle = game.operations.find((o) => o.to === r.id && o.phase === "battle"),
       fill = battle ? `url(#front-${battle.id})` : color;
-    return `<g class="region ${selected === r.id ? "selected" : ""} ${target === r.id ? "targeted" : ""} ${battle ? "contested" : ""}" role="button" tabindex="0" data-region="${r.id}" aria-label="${r.name}, ${f.name}, úroveň ${r.level}, ${r.owner < 0 ? "neutrální posádka " + num(defenseStrength(game, r)) : game.nations[r.owner].name}" aria-pressed="${selected === r.id}"><polygon points="${r.polygon}" fill="${fill}" fill-opacity="${battle ? ".58" : r.owner === game.player ? ".44" : r.owner < 0 ? ".11" : ".38"}" stroke="${color}" stroke-opacity="${r.owner < 0 ? ".45" : ".13"}"/><foreignObject x="${r.x - 14}" y="${r.y - 43}" width="28" height="28" class="facility-symbol"><div xmlns="http://www.w3.org/1999/xhtml" class="map-sprite sprite-${r.facility}"></div></foreignObject><text x="${r.x}" y="${r.y + 1}" class="region-name">${r.name}</text><text x="${r.x}" y="${r.y + 18}" class="facility-label" fill="${color}">${f.short} · ${r.level}</text>${r.owner < 0 && !battle ? `<g class="neutral-garrison"><rect x="${r.x - 27}" y="${r.y + 25}" width="54" height="18" rx="9"/><text x="${r.x}" y="${r.y + 38}">⬟ ${num(defenseStrength(game, r))}</text></g>` : r.fort > 0 ? `<text x="${r.x}" y="${r.y + 36}" class="fort-label">⬟ ${r.fort}</text>` : ""}${r.upgrade ? `<text x="${r.x}" y="${r.y + 52}" class="facility-label">↑ ${r.upgrade.remaining} s</text>` : ""}${battle ? `<g class="battle-progress"><rect x="${r.x - 34}" y="${r.y + 28}" width="68" height="10" rx="5"/><rect class="progress-fill" x="${r.x - 32}" y="${r.y + 30}" width="${Math.max(1, battle.progress * 64)}" height="6" rx="3" fill="${game.nations[battle.owner].color}"/><text x="${r.x}" y="${r.y + 50}">${Math.round(battle.progress * 100)} %</text></g>` : ""}</g>`;
+    return `<g class="region terrain-${r.terrain} ${selected === r.id ? "selected" : ""} ${target === r.id ? "targeted" : ""} ${battle ? "contested" : ""}" role="button" tabindex="0" data-region="${r.id}" aria-label="${r.name}, ${f.name}, úroveň ${r.level}, ${r.owner < 0 ? "neutrální posádka " + num(defenseStrength(game, r)) : game.nations[r.owner].name}" aria-pressed="${selected === r.id}"><polygon points="${r.polygon}" fill="${fill}" fill-opacity="${battle ? ".58" : r.owner === game.player ? ".44" : r.owner < 0 ? ".18" : ".38"}" stroke="${color}" stroke-opacity="${r.owner < 0 ? ".45" : ".13"}"/><foreignObject x="${r.x - 14}" y="${r.y - 43}" width="28" height="28" class="facility-symbol"><div xmlns="http://www.w3.org/1999/xhtml" class="map-sprite sprite-${r.facility}"></div></foreignObject><text x="${r.x}" y="${r.y + 1}" class="region-name">${r.name}</text><text x="${r.x}" y="${r.y + 18}" class="facility-label" fill="${color}">${f.short} · ${r.level}</text>${r.owner < 0 && !battle ? `<g class="neutral-garrison"><rect x="${r.x - 27}" y="${r.y + 25}" width="54" height="18" rx="9"/><text x="${r.x}" y="${r.y + 38}">⬟ ${num(defenseStrength(game, r))}</text></g>` : r.fort > 0 ? `<text x="${r.x}" y="${r.y + 36}" class="fort-label">⬟ ${r.fort}</text>` : ""}${r.upgrade ? `<text x="${r.x}" y="${r.y + 52}" class="facility-label">↑ ${r.upgrade.remaining} s</text>` : ""}${battle ? `<g class="battle-progress"><rect x="${r.x - 34}" y="${r.y + 28}" width="68" height="10" rx="5"/><rect class="progress-fill" x="${r.x - 32}" y="${r.y + 30}" width="${Math.max(1, battle.progress * 64)}" height="6" rx="3" fill="${game.nations[battle.owner].color}"/><text x="${r.x}" y="${r.y + 50}">${Math.round(battle.progress * 100)} %</text></g>` : ""}</g>`;
   })
   .join("")}
 ${game.regions.filter((r) => r.geography === "land").map((r) => {
@@ -270,6 +272,8 @@ function dialog() {
   return "";
 }
 function render() {
+  const previousPanel = document.querySelector<HTMLElement>(".panel-body");
+  if (previousPanel) panelScroll = previousPanel.scrollTop;
   const active = document.activeElement as HTMLElement | null,
     focusId = active?.id,
     action = active?.dataset.action,
@@ -282,7 +286,7 @@ function render() {
 <div class="resource-bar"><div class="your-nation"><i style="background:${n.color}"></i><div><span class="eyebrow">TVÁ FRAKCE</span><strong>${n.name}</strong></div></div><div class="resource"><span>POKLADNA</span><strong>${num(n.money)} ¤</strong></div><div class="resource"><span>BILANCE / S*</span><strong class="${e.net >= 0 ? "positive" : "negative"}">${e.net >= 0 ? "+" : ""}${decimal(e.net)} ¤</strong></div><div class="resource"><span>POPULACE</span><strong>${num(e.population)}</strong></div><div class="resource"><span>ÚZEMÍ</span><strong>${owned(game, game.player).length}<small> / ${playableRegions(game).length}</small></strong></div><div class="time-controls"><span class="game-clock">${clock(game.time)}</span>${button(paused ? "▶ Spustit" : "Ⅱ Pauza", "pause", ended, "play-button")}${[1, 2, 4].map((s) => button(s + "×", "speed:" + s, false, speed === s ? "active" : "")).join("")}</div></div>
 <div class="materials-bar">${(["iron", "coal", "oil", "grain"] as Commodity[]).map((k) => `<div class="commodity commodity-${k}">${sprite(k, "sprite-icon commodity-icon")}<span>${TRADE[k].name.toUpperCase()}</span><strong>${num(n.resources[k])}</strong><small>${k === "grain" ? `+${decimal(e.production.grain)} / −${decimal(e.grainUse)}/s` : k === "oil" ? `+${decimal(e.production.oil)} / −${decimal(e.oilUse)}/s` : `těžba +${decimal(e.production[k])}/s`}</small></div>`).join("")}<div class="fuel-summary"><span>STAV ZÁSOBOVÁNÍ</span><strong class="${e.foodCovered && e.oilCovered ? "positive" : "warning"}">${!e.foodCovered ? "CHYBÍ OBILÍ" : !e.oilCovered ? "CHYBÍ ROPA" : "ZÁSOBENO"}</strong><small>${n.populationLoss > 0 ? `Ztráta populace ${num(n.populationLoss)}` : "Bez ztrát ze zásobování"}</small></div><p>*Bilance před jednorázovým náborem a výstavbou.</p></div>
 <main><section class="map-column">${armyPanel()}<div class="map-heading"><div><span class="eyebrow">OPERAČNÍ MAPA</span><h1>Jantarové pobřeží</h1></div><span class="live-state ${paused ? "is-paused" : ""}">${ended ? "KONEC PARTIE" : paused ? "POZASTAVENO" : "SIMULACE BĚŽÍ"}</span></div>
-<div class="map-surface ${paused ? "paused" : ""}"><div class="map-canvas" style="transform:translate(${mapPanX}px,${mapPanY}px) scale(${mapZoom * BASE_MAP_SCALE})">${mapMarkup()}</div><div class="zoom-hint">Kolečko: přiblížení · šipky: posun · ${Math.round(mapZoom * 100)} %</div><div class="map-score"><b>STÁTY</b>${game.nations.filter((f) => owned(game, f.id).length).map((f) => `<span><i style="background:${f.color}"></i>${owned(game, f.id).length} úz. · ⚔ ${num(f.army.infantry)}</span>`).join("")}</div>${ended ? `<div class="result-banner"><h2>${game.winner === game.player ? "Vítězství" : "Tvá frakce byla poražena"}</h2>${button("Nová kampaň", "new", false, "primary")}</div>` : ""}</div><div class="map-footer"><span>Mini jednotky trvale označují státní hranice</span><span>Fronta a ukazatel postupu se posouvají napadenou provincií</span></div><div class="notice" role="status">${esc(notice)}</div>
+<div class="map-surface ${paused ? "paused" : ""}"><div class="map-canvas" style="transform:translate(${mapPanX}px,${mapPanY}px) scale(${mapZoom * BASE_MAP_SCALE})">${mapMarkup()}</div><div class="map-tools" aria-label="Nástroje mapy">${button("Kurzor", "mapmode:select", false, mapMode === "select" ? "active" : "")}${button("↟ Vylepšit", "mapmode:upgrade", false, mapMode === "upgrade" ? "active" : "")}${button("⬟ Opevnit", "mapmode:fortify", false, mapMode === "fortify" ? "active" : "")}</div><div class="zoom-hint">Kolečko: přiblížení · šipky: posun · ${Math.round(mapZoom * 100)} %</div><div class="map-score"><b>STÁTY</b>${game.nations.filter((f) => owned(game, f.id).length).map((f) => `<span><i style="background:${f.color}"></i>${owned(game, f.id).length} úz. · ⚔ ${num(f.army.infantry)}</span>`).join("")}</div>${ended ? `<div class="result-banner"><h2>${game.winner === game.player ? "Vítězství" : "Tvá frakce byla poražena"}</h2>${button("Nová kampaň", "new", false, "primary")}</div>` : ""}</div><div class="map-footer"><span>${mapMode === "upgrade" ? "Režim vylepšování: klikni na vlastní provincii" : mapMode === "fortify" ? "Režim opevňování: klikni na vlastní provincii" : "Mini jednotky trvale označují státní hranice"}</span><span>Fronta a ukazatel postupu se posouvají napadenou provincií</span></div><div class="notice" role="status">${esc(notice)}</div>
 <div class="bottom-grid"><section><div class="section-title">ROVNOVÁHA SIL <span>ÚZEMÍ / ARMÁDA</span></div>${game.nations.map((f) => `<div class="faction-row"><i style="background:${f.color}"></i><span>${f.name}</span><b>${owned(game, f.id).length}</b><small>${num(f.army.infantry)} / ${num(f.army.tanks)}</small></div>`).join("")}</section><section><div class="section-title">HLÁŠENÍ Z FRONTY</div><div class="events">${game.log
     .slice(0, 10)
     .map(
@@ -301,6 +305,8 @@ function render() {
         ? document.querySelector<HTMLElement>('[data-region="' + reg + '"]')
         : null;
   focus?.focus({ preventScroll: true });
+  const nextPanel = document.querySelector<HTMLElement>(".panel-body");
+  if (nextPanel) nextPanel.scrollTop = panelScroll;
 }
 function selectRegion(id: number) {
   const r = game.regions[id];
@@ -338,7 +344,15 @@ app.addEventListener("click", (ev) => {
   const el = ev.target as Element,
     region = el.closest<HTMLElement>("[data-region]");
   if (region) {
-    selectRegion(Number(region.dataset.region));
+    const id = Number(region.dataset.region), r = game.regions[id];
+    if (mapMode === "upgrade" && r.owner === game.player)
+      send({ type: "upgrade", region: id });
+    else if (mapMode === "fortify" && r.owner === game.player)
+      send({ type: "fortify", region: id });
+    else if (mapMode !== "select" && r.owner !== game.player) {
+      notice = "Tento nástroj lze použít jen na vlastní provincii.";
+      render();
+    } else selectRegion(id);
     return;
   }
   const a = el.closest<HTMLElement>("[data-action]")?.dataset.action;
@@ -364,7 +378,13 @@ app.addEventListener("click", (ev) => {
     paused = !paused;
     accumulator = 0;
   } else if (kind === "speed") speed = Number(value);
-  else if (kind === "tab") tab = value;
+  else if (kind === "tab") {
+    tab = value;
+    panelScroll = 0;
+  } else if (kind === "mapmode") {
+    mapMode = value as "select" | "upgrade" | "fortify";
+    notice = mapMode === "upgrade" ? "Kliknutím na vlastní provincii ji vylepšíš." : mapMode === "fortify" ? "Kliknutím na vlastní provincii zahájíš opevnění." : "Běžný režim výběru provincií.";
+  }
   else if (kind === "save") {
     save();
     notice = saveStatus;
@@ -385,6 +405,8 @@ app.addEventListener("click", (ev) => {
     mapZoom = 1;
     mapPanX = -150;
     mapPanY = -70;
+    mapMode = "select";
+    panelScroll = 0;
     notice = "Nová kampaň. Nastav armádu a vyber první důl.";
     save();
   }

@@ -90,7 +90,29 @@ test("UI: select target, issue attack, simulate, save and reload", () => {
 });
 test("UI: market sprite survives card background styling", () => {
   assert.match(styles, /market-icon[^}]*background-image:\s*url\([^)]*frontline-sprites\.webp/);
+  assert.match(styles, /market-icon\.sprite-iron[^}]*background-position:\s*100%\s*0/);
+  assert.match(styles, /market-icon\.sprite-coal[^}]*background-position:\s*0\s*50%/);
   assert.match(styles, /map-canvas[^}]*width:\s*1350px/);
+});
+test("UI: panel scroll survives simulation renders", () => {
+  const ui = setup();
+  ui.click('[data-action="tab:trade"]');
+  const panel = ui.find(".panel-body");
+  panel.scrollTop = 180;
+  ui.click('[data-action="pause"]');
+  ui.advance(1);
+  assert.equal(ui.find(".panel-body").scrollTop, 180);
+  ui.dom.window.close();
+});
+test("UI: map tools upgrade and fortify a clicked province", () => {
+  const ui = setup();
+  ui.click('[data-action="mapmode:upgrade"]');
+  ui.click('[data-region="17"]');
+  assert.ok(ui.find(".project"));
+  ui.click('[data-action="mapmode:fortify"]');
+  ui.click('[data-region="17"]');
+  assert.match(ui.find(".fort-card").textContent, /Stavba/);
+  ui.dom.window.close();
 });
 test("UI: upgrade, research, help, new faction and army slider", () => {
   const ui = setup();

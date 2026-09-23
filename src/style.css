@@ -200,6 +200,10 @@
   background-repeat: no-repeat;
   background-size: 300% 300%;
 }
+.market-head > .market-icon.sprite-iron { background-position: 100% 0; }
+.market-head > .market-icon.sprite-coal { background-position: 0 50%; }
+.market-head > .market-icon.sprite-oil { background-position: 50% 50%; }
+.market-head > .market-icon.sprite-grain { background-position: 100% 50%; }
 .market-head h3 {
   display: inline;
   margin: 0 9px 0 0;
@@ -555,6 +559,29 @@ h3 {
   font: 9px ui-monospace, monospace;
   pointer-events: none;
 }
+.map-tools {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 5;
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid #435963;
+  border-radius: 6px;
+  background: #07131be8;
+  box-shadow: 0 4px 16px #0007;
+  backdrop-filter: blur(6px);
+}
+.map-tools button {
+  padding: 6px 9px;
+  font-size: 10px;
+}
+.map-tools button.active {
+  color: #172117;
+  border-color: var(--accent);
+  background: var(--accent);
+}
 .world-map {
   display: block;
   width: 1350px;
@@ -646,6 +673,13 @@ h3 {
     monospace;
   letter-spacing: 7px;
 }
+.sea-current {
+  fill: none;
+  stroke: #b3d4da;
+  stroke-width: 1.2;
+  stroke-dasharray: 9 13;
+  opacity: .12;
+}
 .region {
   cursor: pointer;
   outline: none;
@@ -653,7 +687,10 @@ h3 {
 .region polygon {
   stroke-width: 1.1;
   transition: fill-opacity 0.2s;
+  filter: url(#land-shadow);
 }
+.region.terrain-forest > polygon:first-child { stroke-dasharray: 2 1; }
+.region.terrain-mountain > polygon:first-child { stroke-width: 1.8; }
 .state-border {
   fill: none;
   stroke-width: 4.5;

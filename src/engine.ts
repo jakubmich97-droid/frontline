@@ -265,15 +265,11 @@ export const fortifyCost = (r: Region) => 180 + r.fort * 120;
 export const researchCost = (n: Nation, b: Branch) => 500 + n.tech[b] * 450;
 export function createGame(seed = 42, player = 0): Game {
   const starts = [17, 2, 6, 14, 33, 44],
-    geometryScaleX = 1.32,
-    geometryScaleY = 1.3,
-    left = [245, 180, 92, 52, 108, 205, 315],
-    right = [760, 850, 938, 958, 900, 805, 700],
+    rowShift = [12, -8, -20, -8, 8, 22, 4],
     points = Array.from({ length: MAP_ROWS + 1 }, (_, row) =>
       Array.from({ length: MAP_COLS + 1 }, (_, col) => [
-        20 + geometryScaleX * (left[row] + ((right[row] - left[row]) * col) / MAP_COLS +
-          Math.sin(col * 4 + row * 8) * (col === 0 || col === MAP_COLS ? 12 : 17)),
-        22 + geometryScaleY * (48 + row * 102 + Math.cos(col * 5 + row * 3) * 13),
+        82 + col * 145 + rowShift[row] + Math.sin(col * 4 + row * 8) * 6,
+        66 + row * 126 + Math.cos(col * 5 + row * 3) * 7,
       ]),
     );
   const regions = names.map((name, id): Region => {
@@ -736,7 +732,7 @@ export function tick(g: Game, bots = true): void {
     const desired = economy(g, n.id).desiredInfantry,
       free = available(g, n.id);
     if (n.army.infantry < desired) {
-      const count = Math.min(6, desired - n.army.infantry, n.money / 3);
+      const count = Math.min(18, desired - n.army.infantry, n.money / 3);
       n.army.infantry += count;
       n.money -= count * 3;
     } else if (n.army.infantry > desired)

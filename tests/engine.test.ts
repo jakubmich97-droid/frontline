@@ -69,8 +69,8 @@ test("slider recruits gradually for money and demobilizes only idle units", () =
   const m = g.nations[0].money,
     e = economy(g, 0);
   tick(g, false);
-  assert.equal(g.nations[0].army.infantry, 166);
-  close(g.nations[0].money, m + e.net - 18);
+  assert.equal(g.nations[0].army.infantry, 178);
+  close(g.nations[0].money, m + e.net - 54);
   issue(g, 0, { type: "deploy", from: 17, to: 16, percent: 90 });
   const busy = deployed(g, 0).infantry;
   issue(g, 0, { type: "armyTarget", percent: 0 });
