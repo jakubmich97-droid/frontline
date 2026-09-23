@@ -4,6 +4,7 @@ import {
   issue,
   tick,
   owned,
+  playableRegions,
   economy,
   strength,
   available,
@@ -119,16 +120,21 @@ function mapMarkup() {
       edge = Math.round(o.progress * 100);
     return `<linearGradient id="front-${o.id}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"><stop offset="${edge}%" stop-color="${attacker}"/><stop offset="${edge}%" stop-color="${defender}"/></linearGradient>`;
   }).join("");
-  return `<svg class="world-map" viewBox="0 0 1000 720" role="group" aria-label="Strategická mapa, ${game.regions.length} regionů"><defs><pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#24404e" stroke-width=".5"/></pattern>${gradients}</defs><rect width="1000" height="720" fill="url(#grid)"/><text x="28" y="27" class="map-note">JANTAROVÝ KONTINENT / KOMODITNÍ MAPA</text><text x="970" y="27" class="map-note">N ↑</text><text x="500" y="700" text-anchor="middle" class="sea-label">JIŽNÍ MOŘE</text>
+  return `<svg class="world-map" viewBox="0 0 1000 720" role="group" aria-label="Strategická mapa, ${playableRegions(game).length} obyvatelných provincií"><defs><pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#24404e" stroke-width=".5"/></pattern>${gradients}</defs><rect width="1000" height="720" fill="url(#grid)"/><text x="28" y="27" class="map-note">JANTAROVÁ EVROPA / KOMODITNÍ MAPA</text><text x="970" y="27" class="map-note">N ↑</text><text x="118" y="360" text-anchor="middle" class="sea-label">ZÁPADNÍ MOŘE</text><text x="500" y="700" text-anchor="middle" class="sea-label">JIŽNÍ MOŘE</text>
 ${game.regions
   .map((r) => {
+    if (r.geography === "sea") return "";
+    if (r.geography !== "land") {
+      const kind = r.geography === "mountain" ? "mountain" : "lake";
+      return `<g class="obstacle-province ${kind}" aria-label="${r.name}, nepřekonatelná oblast"><polygon points="${r.polygon}"/><foreignObject x="${r.x - 34}" y="${r.y - 40}" width="68" height="68"><div xmlns="http://www.w3.org/1999/xhtml" class="terrain-sprite sprite-${kind}"></div></foreignObject><text x="${r.x}" y="${r.y + 38}" class="obstacle-label">${r.name.toUpperCase()}</text><text x="${r.x}" y="${r.y + 51}" class="obstacle-kind">NEPŘEKONATELNÉ</text></g>`;
+    }
     const color = r.owner < 0 ? "#64757b" : game.nations[r.owner].color,
       f = FACILITIES[r.facility], battle = game.operations.find((o) => o.to === r.id && o.phase === "battle"),
       fill = battle ? `url(#front-${battle.id})` : color;
     return `<g class="region ${selected === r.id ? "selected" : ""} ${target === r.id ? "targeted" : ""} ${battle ? "contested" : ""}" role="button" tabindex="0" data-region="${r.id}" aria-label="${r.name}, ${f.name}, úroveň ${r.level}, ${r.owner < 0 ? "neutrální posádka " + num(defenseStrength(game, r)) : game.nations[r.owner].name}" aria-pressed="${selected === r.id}"><polygon points="${r.polygon}" fill="${fill}" fill-opacity="${battle ? ".58" : r.owner === game.player ? ".44" : r.owner < 0 ? ".11" : ".38"}" stroke="${color}" stroke-opacity="${r.owner < 0 ? ".45" : ".13"}"/><foreignObject x="${r.x - 14}" y="${r.y - 43}" width="28" height="28" class="facility-symbol"><div xmlns="http://www.w3.org/1999/xhtml" class="map-sprite sprite-${r.facility}"></div></foreignObject><text x="${r.x}" y="${r.y + 1}" class="region-name">${r.name}</text><text x="${r.x}" y="${r.y + 18}" class="facility-label" fill="${color}">${f.short} · ${r.level}</text>${r.owner < 0 && !battle ? `<g class="neutral-garrison"><rect x="${r.x - 27}" y="${r.y + 25}" width="54" height="18" rx="9"/><text x="${r.x}" y="${r.y + 38}">⬟ ${num(defenseStrength(game, r))}</text></g>` : r.fort > 0 ? `<text x="${r.x}" y="${r.y + 36}" class="fort-label">⬟ ${r.fort}</text>` : ""}${r.upgrade ? `<text x="${r.x}" y="${r.y + 52}" class="facility-label">↑ ${r.upgrade.remaining} s</text>` : ""}</g>`;
   })
   .join("")}
-${game.regions.map((r) => {
+${game.regions.filter((r) => r.geography === "land").map((r) => {
   const pts = r.polygon.split(" ").map((p) => p.split(",").map(Number)),
     edges = [[0, 1, r.id - MAP_COLS], [1, 2, r.id + 1], [2, 3, r.id + MAP_COLS], [3, 0, r.id - 1]];
   return edges.map(([a, b, neighbor]) => {
@@ -138,7 +144,6 @@ ${game.regions.map((r) => {
     return `<path class="state-border" d="M${pts[a][0]} ${pts[a][1]}L${pts[b][0]} ${pts[b][1]}" stroke="${color}"/>`;
   }).join("");
 }).join("")}
-<g class="terrain-features" pointer-events="none"><path class="mountain-ridge" d="M332 211L385 260L438 307L487 355L535 405"/><foreignObject x="370" y="250" width="78" height="78"><div xmlns="http://www.w3.org/1999/xhtml" class="terrain-sprite sprite-mountain"></div></foreignObject><foreignObject x="458" y="348" width="70" height="70"><div xmlns="http://www.w3.org/1999/xhtml" class="terrain-sprite sprite-mountain"></div></foreignObject><path class="lake-shape" d="M584 281C620 263 687 276 707 311C725 345 687 389 638 386C593 383 553 350 568 316Z"/><foreignObject x="605" y="302" width="72" height="72"><div xmlns="http://www.w3.org/1999/xhtml" class="terrain-sprite sprite-lake"></div></foreignObject><text x="430" y="327" class="obstacle-label">NEPŘEKONATELNÝ HŘEBEN</text><text x="638" y="397" class="obstacle-label">MODRÉ JEZERO</text></g>
 ${game.operations
   .map((o) => {
     const a = game.regions[o.from],
@@ -252,7 +257,7 @@ function render() {
     ended = game.winner !== null || game.defeated.includes(game.player);
   if (ended) paused = true;
   app.innerHTML = `<header><a class="brand" href="./" aria-label="Frontline"><span class="brand-mark">F</span>FRONTLINE<span class="version">ŽIVÁ MAPA · 0.7</span></a><div class="header-actions"><span class="save-status">${saveStatus}</span>${button("Uložit", "save")}${button("?", "help", false, "help-button")}${button("Nová hra", "new")}</div></header>
-<div class="resource-bar"><div class="your-nation"><i style="background:${n.color}"></i><div><span class="eyebrow">TVÁ FRAKCE</span><strong>${n.name}</strong></div></div><div class="resource"><span>POKLADNA</span><strong>${num(n.money)} ¤</strong></div><div class="resource"><span>BILANCE / S*</span><strong class="${e.net >= 0 ? "positive" : "negative"}">${e.net >= 0 ? "+" : ""}${decimal(e.net)} ¤</strong></div><div class="resource"><span>POPULACE</span><strong>${num(e.population)}</strong></div><div class="resource"><span>ÚZEMÍ</span><strong>${owned(game, game.player).length}<small> / ${game.regions.length}</small></strong></div><div class="time-controls"><span class="game-clock">${clock(game.time)}</span>${button(paused ? "▶ Spustit" : "Ⅱ Pauza", "pause", ended, "play-button")}${[1, 2, 4].map((s) => button(s + "×", "speed:" + s, false, speed === s ? "active" : "")).join("")}</div></div>
+<div class="resource-bar"><div class="your-nation"><i style="background:${n.color}"></i><div><span class="eyebrow">TVÁ FRAKCE</span><strong>${n.name}</strong></div></div><div class="resource"><span>POKLADNA</span><strong>${num(n.money)} ¤</strong></div><div class="resource"><span>BILANCE / S*</span><strong class="${e.net >= 0 ? "positive" : "negative"}">${e.net >= 0 ? "+" : ""}${decimal(e.net)} ¤</strong></div><div class="resource"><span>POPULACE</span><strong>${num(e.population)}</strong></div><div class="resource"><span>ÚZEMÍ</span><strong>${owned(game, game.player).length}<small> / ${playableRegions(game).length}</small></strong></div><div class="time-controls"><span class="game-clock">${clock(game.time)}</span>${button(paused ? "▶ Spustit" : "Ⅱ Pauza", "pause", ended, "play-button")}${[1, 2, 4].map((s) => button(s + "×", "speed:" + s, false, speed === s ? "active" : "")).join("")}</div></div>
 <div class="materials-bar">${(["iron", "coal", "oil", "grain"] as Commodity[]).map((k) => `<div class="commodity commodity-${k}">${sprite(k, "sprite-icon commodity-icon")}<span>${TRADE[k].name.toUpperCase()}</span><strong>${num(n.resources[k])}</strong><small>${k === "grain" ? `+${decimal(e.production.grain)} / −${decimal(e.grainUse)}/s` : k === "oil" ? `+${decimal(e.production.oil)} / −${decimal(e.oilUse)}/s` : `těžba +${decimal(e.production[k])}/s`}</small></div>`).join("")}<div class="fuel-summary"><span>STAV ZÁSOBOVÁNÍ</span><strong class="${e.foodCovered && e.oilCovered ? "positive" : "warning"}">${!e.foodCovered ? "CHYBÍ OBILÍ" : !e.oilCovered ? "CHYBÍ ROPA" : "ZÁSOBENO"}</strong><small>${n.populationLoss > 0 ? `Ztráta populace ${num(n.populationLoss)}` : "Bez ztrát ze zásobování"}</small></div><p>*Bilance před jednorázovým náborem a výstavbou.</p></div>
 <main><section class="map-column">${armyPanel()}<div class="map-heading"><div><span class="eyebrow">OPERAČNÍ MAPA</span><h1>Jantarové pobřeží</h1></div><span class="live-state ${paused ? "is-paused" : ""}">${ended ? "KONEC PARTIE" : paused ? "POZASTAVENO" : "SIMULACE BĚŽÍ"}</span></div>
 <div class="map-surface ${paused ? "paused" : ""}"><div class="map-canvas" style="transform:translate(${mapPanX}px,${mapPanY}px) scale(${mapZoom})">${mapMarkup()}</div><div class="zoom-hint">Kolečko: přiblížení · ${Math.round(mapZoom * 100)} %</div><div class="map-score"><b>STÁTY</b>${game.nations.filter((f) => owned(game, f.id).length).map((f) => `<span><i style="background:${f.color}"></i>${owned(game, f.id).length} úz. · ⚔ ${num(f.army.infantry)}</span>`).join("")}</div>${ended ? `<div class="result-banner"><h2>${game.winner === game.player ? "Vítězství" : "Tvá frakce byla poražena"}</h2>${button("Nová kampaň", "new", false, "primary")}</div>` : ""}</div><div class="map-footer"><span>Obrázkové ikony: město · doly · ropa · obilí · přístav</span><span>Hory a jezera nelze překročit · kolečko přibližuje mapu</span></div><div class="notice" role="status">${esc(notice)}</div>

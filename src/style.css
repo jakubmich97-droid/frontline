@@ -556,19 +556,19 @@ h3 {
 }
 .map-sprite { width: 28px; height: 28px; }
 .terrain-sprite { width: 100%; height: 100%; opacity: .92; }
-.mountain-ridge {
-  fill: none;
-  stroke: #9fa9a5;
-  stroke-width: 8;
-  stroke-dasharray: 3 7;
-  opacity: .35;
-  filter: drop-shadow(0 3px 4px #000c);
+.obstacle-province { pointer-events: none; }
+.obstacle-province polygon {
+  stroke-width: 2.5;
+  filter: drop-shadow(0 4px 7px #000b);
 }
-.lake-shape {
-  fill: #287ea0;
-  fill-opacity: .45;
-  stroke: #77c6dc;
-  stroke-width: 2;
+.obstacle-province.mountain polygon {
+  fill: #27323a;
+  stroke: #96a3a4;
+}
+.obstacle-province.lake polygon {
+  fill: #176c8d;
+  fill-opacity: .72;
+  stroke: #72cbe2;
 }
 .obstacle-label {
   fill: #c5d6d6;
@@ -577,6 +577,15 @@ h3 {
   stroke-width: 3px;
   font: 700 8px ui-monospace, monospace;
   letter-spacing: 1px;
+  text-anchor: middle;
+}
+.obstacle-kind {
+  fill: #aebdc0;
+  paint-order: stroke;
+  stroke: #07131b;
+  stroke-width: 3px;
+  font: 600 7px ui-monospace, monospace;
+  letter-spacing: 1.1px;
   text-anchor: middle;
 }
 .map-note {

@@ -18,13 +18,17 @@ import {
   restore,
   tankBlocker,
   defenseStrength,
-  IMPASSABLE_EDGES,
+  BLOCKED_REGIONS,
+  PORT_REGIONS,
+  SEA_REGIONS,
+  playableRegions,
 } from "../src/engine.ts";
 const close = (a: number, b: number) =>
   assert.ok(Math.abs(a - b) < 1e-6, a + " != " + b);
 test("one national army, no provincial unit stores, equal starts", () => {
   const g = createGame();
   assert.equal(g.regions.length, 48);
+  assert.equal(playableRegions(g).length, 34);
   for (const r of g.regions) {
     assert.ok(!("army" in r));
     for (const id of r.neighbors)
@@ -36,11 +40,22 @@ test("one national army, no provincial unit stores, equal starts", () => {
     assert.equal(owned(g, n.id)[0].facility, "city");
   }
 });
-test("mountain ridges and lakes are mechanically impassable", () => {
+test("mountains and lakes are separate impassable provinces", () => {
   const g = createGame();
-  for (const [a, b] of IMPASSABLE_EDGES) {
-    assert.equal(g.regions[a].neighbors.includes(b), false);
-    assert.equal(g.regions[b].neighbors.includes(a), false);
+  for (const id of BLOCKED_REGIONS) {
+    assert.equal(g.regions[id].owner, -1);
+    assert.equal(g.regions[id].neighbors.length, 0);
+    assert.notEqual(g.regions[id].geography, "land");
+    assert.equal(g.regions.some((r) => r.neighbors.includes(id)), false);
+  }
+});
+test("ports exist only on the sea coast, never on lakes", () => {
+  const g = createGame();
+  for (const r of g.regions.filter((r) => r.facility === "port")) {
+    assert.ok(PORT_REGIONS.has(r.id));
+    const row = Math.floor(r.id / 8), col = r.id % 8;
+    const around = [r.id - 8, r.id + 8, r.id - 1, r.id + 1];
+    assert.ok(row === 0 || row === 5 || col === 0 || col === 7 || around.some((id) => SEA_REGIONS.has(id)));
   }
 });
 test("slider recruits gradually for money and demobilizes only idle units", () => {
@@ -105,7 +120,7 @@ test("fortifications raise defense and full-army attacks are allowed", () => {
 test("mines produce separate national stocks, enemies do not receive them", () => {
   const g = createGame();
   g.regions[13].owner = 0;
-  g.regions[15].owner = 0;
+  g.regions[22].owner = 0;
   tick(g, false);
   close(g.nations[0].resources.iron, 0.8);
   close(g.nations[0].resources.coal, 0.8);
@@ -174,7 +189,7 @@ test("port discounts automatic oil purchases and earns money", () => {
   const g = createGame();
   g.nations[0].resources.oil = 0;
   const before = economy(g, 0);
-  g.regions[11].owner = 0;
+  g.regions[9].owner = 0;
   const after = economy(g, 0);
   assert.ok(after.oilPrice < before.oilPrice);
   assert.ok(after.income > before.income);

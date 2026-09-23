@@ -3,12 +3,14 @@ export type Units = { infantry: number; tanks: number };
 export type Branch = "military" | "industry" | "logistics";
 export type Commodity = "iron" | "coal" | "oil" | "grain";
 export type Facility = "city" | Commodity | "port";
+export type Geography = "land" | "mountain" | "lake" | "sea";
 type Queue = { remaining: number; total: number };
 export type Region = {
   id: number;
   name: string;
   owner: number;
   facility: Facility;
+  geography: Geography;
   level: number;
   terrain: "plain" | "forest" | "mountain";
   neighbors: number[];
@@ -135,10 +137,11 @@ export const TRADE_LOT = 25;
 export const MAP_COLS = 8;
 export const MAP_ROWS = 6;
 // Mountain ridges and lakes remove these province connections from pathfinding.
-export const IMPASSABLE_EDGES: ReadonlyArray<readonly [number, number]> = [
-  [10, 18], [18, 26], [26, 34], [34, 42],
-  [19, 20], [20, 28], [27, 28], [28, 29],
-];
+export const SEA_REGIONS = new Set([0, 7, 8, 15, 32, 40, 46, 47]);
+export const MOUNTAIN_REGIONS = new Set([12, 20, 28, 36]);
+export const LAKE_REGIONS = new Set([21, 29]);
+export const BLOCKED_REGIONS = new Set([...MOUNTAIN_REGIONS, ...LAKE_REGIONS]);
+export const PORT_REGIONS = new Set([9, 23, 39, 45]);
 export const FACTIONS = [
   { name: "Jantarová unie", color: "#b6df85", personality: "balanced" },
   { name: "Severní svaz", color: "#7fbece", personality: "cautious" },
@@ -250,7 +253,9 @@ const facilities: Facility[] = [
 export const strength = (a: Units) => a.infantry + a.tanks * 6;
 export const personnel = (a: Units) => a.infantry + a.tanks * 4;
 export const owned = (g: Game, id: number) =>
-  g.regions.filter((r) => r.owner === id);
+  g.regions.filter((r) => r.geography === "land" && r.owner === id);
+export const playableRegions = (g: Game) =>
+  g.regions.filter((r) => r.geography === "land");
 export const population = (r: Region) =>
   r.facility === "city" ? 8000 * r.level : 1500;
 export const defense = (r: Region) =>
@@ -259,21 +264,21 @@ export const upgradeCost = (r: Region) => 250 + r.level * 200;
 export const fortifyCost = (r: Region) => 180 + r.fort * 120;
 export const researchCost = (n: Nation, b: Branch) => 500 + n.tech[b] * 450;
 export function createGame(seed = 42, player = 0): Game {
-  const starts = [17, 0, 14, 6, 28, 34],
-    blocked = new Set(IMPASSABLE_EDGES.map(([a, b]) => [a, b].sort((x, y) => x - y).join("-"))),
+  const starts = [17, 2, 6, 14, 33, 44],
+    left = [245, 180, 92, 52, 108, 205, 315],
+    right = [760, 850, 938, 958, 900, 805, 700],
     points = Array.from({ length: MAP_ROWS + 1 }, (_, row) =>
       Array.from({ length: MAP_COLS + 1 }, (_, col) => [
-        48 +
-          col * 113 +
-          Math.sin(col * 4 + row * 8) *
-            (col === 0 || col === MAP_COLS || row === 0 || row === MAP_ROWS ? 10 : 16),
+        left[row] + ((right[row] - left[row]) * col) / MAP_COLS +
+          Math.sin(col * 4 + row * 8) * (col === 0 || col === MAP_COLS ? 12 : 17),
         48 + row * 102 + Math.cos(col * 5 + row * 3) * 13,
       ]),
     );
   const regions = names.map((name, id): Region => {
     const row = Math.floor(id / MAP_COLS),
       col = id % MAP_COLS,
-      owner = starts.indexOf(id),
+      geography: Geography = SEA_REGIONS.has(id) ? "sea" : MOUNTAIN_REGIONS.has(id) ? "mountain" : LAKE_REGIONS.has(id) ? "lake" : "land",
+      owner = geography === "land" ? starts.indexOf(id) : -1,
       v = [
         points[row][col],
         points[row][col + 1],
@@ -282,20 +287,21 @@ export function createGame(seed = 42, player = 0): Game {
       ];
     return {
       id,
-      name,
+      name: geography === "mountain" ? ["Severní Karpaty", "Vysoké Alpy", "Dinárské hory", "Jižní hřeben"][Array.from(MOUNTAIN_REGIONS).indexOf(id)] : geography === "lake" ? (id === 21 ? "Velké jezero" : "Jezerní pánev") : name,
       owner,
-      facility: facilities[id],
+      facility: starts.includes(id) ? "city" : PORT_REGIONS.has(id) ? "port" : facilities[id] === "port" ? "coal" : facilities[id],
+      geography,
       level: owner >= 0 ? 2 : 1,
       terrain: id % 9 === 3 ? "mountain" : id % 3 === 2 ? "forest" : "plain",
       upgrade: null,
       fort: 0,
       fortification: null,
-      neighbors: [
+      neighbors: geography !== "land" ? [] : [
         row > 0 ? id - MAP_COLS : -1,
         row < MAP_ROWS - 1 ? id + MAP_COLS : -1,
         col > 0 ? id - 1 : -1,
         col < MAP_COLS - 1 ? id + 1 : -1,
-      ].filter((i) => i >= 0 && !blocked.has([id, i].sort((a, b) => a - b).join("-"))),
+      ].filter((i) => i >= 0 && !SEA_REGIONS.has(i) && !BLOCKED_REGIONS.has(i)),
       x: v.reduce((s, p) => s + p[0], 0) / 4,
       y: v.reduce((s, p) => s + p[1], 0) / 4,
       polygon: v.map((p) => p.join(",")).join(" "),
@@ -821,8 +827,8 @@ export function tick(g: Game, bots = true): void {
       n.research = null;
       event(g, n.name + " byla poražena.");
     }
-  const owner = g.regions[0].owner;
-  if (owner >= 0 && g.regions.every((r) => r.owner === owner)) {
+  const lands = playableRegions(g), owner = lands[0]?.owner ?? -1;
+  if (owner >= 0 && lands.every((r) => r.owner === owner)) {
     g.winner = owner;
     g.operations = [];
     event(g, g.nations[owner].name + " ovládla mapu.");
@@ -837,7 +843,7 @@ export function botTurn(g: Game, id: number) {
     rs = owned(g, id);
   if (!rs.length) return;
   const e = economy(g, id),
-    neutralLeft = g.regions.some((r) => r.owner < 0),
+    neutralLeft = playableRegions(g).some((r) => r.owner < 0),
     aggression = Math.max(0, Math.min(100, g.botAggression ?? 60)),
     threat = g.operations.some(
       (o) => g.regions[o.to].owner === id && o.owner !== id,
@@ -1077,12 +1083,19 @@ export function restore(raw: string): Game | null {
       Object.assign(r, {
         name: base.regions[i].name,
         facility: base.regions[i].facility,
+        geography: base.regions[i].geography,
         terrain: base.regions[i].terrain,
         neighbors: base.regions[i].neighbors,
         x: base.regions[i].x,
         y: base.regions[i].y,
         polygon: base.regions[i].polygon,
       });
+      if (r.geography !== "land") {
+        r.owner = -1;
+        r.upgrade = null;
+        r.fortification = null;
+        r.fort = 0;
+      }
     }
     for (let i = 0; i < 6; i++) {
       const n = g.nations[i];
@@ -1126,6 +1139,9 @@ export function restore(raw: string): Game | null {
         capital: base.nations[i].capital,
       });
     }
+    g.operations = g.operations.filter((o) =>
+      g.regions[o.from]?.neighbors.includes(o.to),
+    );
     if (
       new Set(g.operations.map((o) => o.to)).size !== g.operations.length ||
       new Set(g.operations.map((o) => o.id)).size !== g.operations.length

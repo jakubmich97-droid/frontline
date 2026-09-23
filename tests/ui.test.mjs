@@ -49,9 +49,9 @@ function setup(saved) {
 }
 test("UI: select target, issue attack, simulate, save and reload", () => {
   const ui = setup();
-  assert.equal(ui.w.document.querySelectorAll("[data-region]").length, 48);
-  assert.equal(ui.w.document.querySelectorAll(".map-sprite").length, 48);
-  assert.ok(ui.find(".terrain-features"));
+  assert.equal(ui.w.document.querySelectorAll("[data-region]").length, 34);
+  assert.equal(ui.w.document.querySelectorAll(".map-sprite").length, 34);
+  assert.equal(ui.w.document.querySelectorAll(".obstacle-province").length, 6);
   assert.ok(ui.find(".zoom-hint"));
   assert.ok(ui.w.document.querySelectorAll(".state-border").length > 20);
   assert.ok(ui.w.document.querySelectorAll(".neutral-garrison").length > 20);
@@ -111,7 +111,7 @@ test("UI: upgrade, research, help, new faction and army slider", () => {
   assert.match(ui.find('[data-action="auto:buy:grain"]').textContent, /ZAP/);
   ui.click('[data-action="trade:buy:grain"]');
   assert.match(ui.find(".panel-body").textContent, /Obilí/);
-  ui.click('[data-region="1"]');
+  ui.click('[data-region="3"]');
   const attack = ui.find("#attack-size");
   attack.value = "100";
   attack.dispatchEvent(new ui.w.Event("input", { bubbles: true }));
