@@ -52,6 +52,7 @@ test("UI: select target, issue attack, simulate, save and reload", () => {
   assert.equal(ui.w.document.querySelectorAll("[data-region]").length, 34);
   assert.equal(ui.w.document.querySelectorAll(".map-sprite").length, 34);
   assert.equal(ui.w.document.querySelectorAll(".obstacle-province").length, 6);
+  assert.ok(ui.w.document.querySelectorAll(".border-unit").length > 10);
   assert.ok(ui.find(".zoom-hint"));
   assert.ok(ui.w.document.querySelectorAll(".state-border").length > 20);
   assert.ok(ui.w.document.querySelectorAll(".neutral-garrison").length > 20);
@@ -61,12 +62,14 @@ test("UI: select target, issue attack, simulate, save and reload", () => {
   assert.equal(ui.find('[data-action="deploy"]').disabled, false);
   ui.click('[data-action="deploy"]');
   assert.equal(ui.w.document.querySelectorAll(".operation").length, 1);
+  assert.ok(ui.w.document.querySelectorAll(".combat-unit").length >= 8);
   ui.click('[data-action="tab:operations"]');
   ui.click('[data-action^="reinforce:"]');
   assert.match(ui.find(".operation-card").textContent, /Posily|pěchoty/);
   ui.click('[data-action="pause"]');
   ui.advance(12);
   assert.match(ui.find(".game-clock").textContent, /00:1/);
+  assert.ok(ui.find(".battle-progress"));
   ui.click('[data-action="pause"]');
   ui.click('[data-action="save"]');
   const saved = ui.w.localStorage.getItem("frontline.save.v3");
@@ -137,5 +140,8 @@ test("UI: selecting source, keyboard and malformed save remain safe", () => {
     }),
   );
   assert.match(ui.find(".live-state").textContent, /SIMULACE BĚŽÍ/);
+  const before = ui.find(".map-canvas").style.transform;
+  ui.w.document.body.dispatchEvent(new ui.w.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  assert.notEqual(ui.find(".map-canvas").style.transform, before);
   ui.dom.window.close();
 });

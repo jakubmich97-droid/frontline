@@ -556,6 +556,43 @@ h3 {
 }
 .map-sprite { width: 28px; height: 28px; }
 .terrain-sprite { width: 100%; height: 100%; opacity: .92; }
+.map-unit { overflow: visible; pointer-events: none; }
+.unit-token {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--faction) 62%, #071017);
+  border: 1px solid var(--faction);
+  box-shadow: 0 1px 3px #000, 0 0 4px var(--faction);
+}
+.unit-token i {
+  display: block;
+  width: 145%;
+  height: 145%;
+  background-image: url("/assets/unit-sprites.webp");
+  background-repeat: no-repeat;
+  background-size: 200% 100%;
+  filter: drop-shadow(0 1px 1px #000);
+}
+.unit-token.soldier i { background-position: 0 0; }
+.unit-token.tank i { background-position: 100% 0; width: 155%; height: 155%; }
+.border-forces .map-unit { opacity: .94; }
+.troop-front .combat-unit { animation: unit-contact .42s ease-in-out infinite alternate; }
+.troop-front.march .combat-unit { animation: unit-ready .75s ease-in-out infinite alternate; }
+.battle-progress > rect:first-child {
+  fill: #071017e8;
+  stroke: #dbe6df;
+  stroke-width: 1;
+}
+.battle-progress text {
+  fill: #f1f4ee;
+  font: 700 8px ui-monospace, monospace;
+  paint-order: stroke;
+  stroke: #071017;
+  stroke-width: 3px;
+}
 .obstacle-province { pointer-events: none; }
 .obstacle-province polygon {
   stroke-width: 2.5;
@@ -708,6 +745,7 @@ h3 {
 .paused .march-line,
 .paused .battle-pulse,
 .paused .troop-front circle,
+.paused .troop-front .map-unit,
 .paused .clash circle,
 .paused .clash path {
   animation-play-state: paused;
@@ -732,6 +770,12 @@ h3 {
 }
 @keyframes frontline {
   to { transform: translateX(4px); opacity: 0.72; }
+}
+@keyframes unit-contact {
+  to { transform: scale(1.12); opacity: .78; }
+}
+@keyframes unit-ready {
+  to { transform: translateY(-2px); }
 }
 @keyframes clash {
   from { transform: scale(0.55); opacity: 1; }
