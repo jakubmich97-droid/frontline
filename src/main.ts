@@ -33,6 +33,7 @@ import {
 } from "./engine.ts";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const KEY = "frontline.save.v3";
+const BASE_MAP_SCALE = 1.22;
 let game: Game = createGame(),
   selected = 17,
   target: number | null = null,
@@ -46,8 +47,8 @@ let game: Game = createGame(),
   dragging = false,
   armyDraft: number | null = null,
   mapZoom = 1,
-  mapPanX = 0,
-  mapPanY = 0;
+  mapPanX = -85,
+  mapPanY = -40;
 let accumulator = 0,
   last = performance.now(),
   renderElapsed = 0;
@@ -259,7 +260,7 @@ function operationsPanel() {
   const ops = game.operations.filter(
     (o) => o.owner === game.player || game.regions[o.to].owner === game.player,
   ), free = available(game, game.player);
-  return `<h2>Operace · ${ops.length}</h2><p class="muted">Postup bitvy ukazuje přímo barevné přelévání napadené provincie.</p>${ops.some((o) => o.owner === game.player) ? `<label class="range-label" for="reinforce-size">Velikost posil <strong id="reinforce-size-label">${percent} %</strong></label><input type="range" id="reinforce-size" aria-label="Velikost posil" min="10" max="100" step="5" value="${percent}">` : ""}${ops.map((o) => `<section class="operation-card"><span class="tag">${o.owner === game.player ? "Vlastní výprava" : "Nepřátelský útok"} · ${o.phase === "march" ? "Přesun" : "Bitva"}</span><h3>${game.regions[o.to].name}</h3><p>${num(o.army.infantry)} pěchoty · ${num(o.army.tanks)} tanků</p><p class="muted">Dominance útoku ${Math.floor(o.progress * 100)} % · ztráty síly ${num(o.losses)}</p>${o.owner === game.player ? button(`Přidat posily · ${percent} % volných`, "reinforce:" + o.id, free.infantry < 1 && free.tanks < 1, "wide") + button("Ustoupit (−20 % jednotek)", "retreat:" + o.id, false, "wide") : ""}</section>`).join("") || '<p class="muted">Žádné probíhající operace u tvého státu.</p>'}`;
+  return `<h2>Operace · ${ops.length}</h2><p class="muted">Postup bitvy ukazuje přímo barevné přelévání napadené provincie.</p>${ops.some((o) => o.owner === game.player) ? `<label class="range-label" for="reinforce-size">Velikost posil <strong id="reinforce-size-label">${percent} %</strong></label><input type="range" id="reinforce-size" aria-label="Velikost posil" min="10" max="100" step="5" value="${percent}">` : ""}${ops.map((o) => { const progress = Math.round(o.progress * 100), attacker = game.nations[o.owner].color; return `<section class="operation-card"><span class="tag">${o.owner === game.player ? "Vlastní výprava" : "Nepřátelský útok"} · ${o.phase === "march" ? "Příprava fronty" : "Bitva"}</span><h3>${game.regions[o.to].name}</h3><p>${num(o.army.infantry)} pěchoty · ${num(o.army.tanks)} tanků</p><div class="operation-progress-head"><span>${o.phase === "march" ? "Připravenost" : "Postup útoku"}</span><strong>${progress} %</strong></div><div class="operation-progress" role="progressbar" aria-label="${o.phase === "march" ? "Připravenost operace" : "Postup útoku"}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><i style="width:${progress}%;background:${attacker}"></i></div><p class="muted">Ztráty bojové síly: ${num(o.losses)}</p>${o.owner === game.player ? button(`Přidat posily · ${percent} % volných`, "reinforce:" + o.id, free.infantry < 1 && free.tanks < 1, "wide") + button("Ustoupit (−20 % jednotek)", "retreat:" + o.id, false, "wide") : ""}</section>`; }).join("") || '<p class="muted">Žádné probíhající operace u tvého státu.</p>'}`;
 }
 function dialog() {
   if (modal === "new")
@@ -281,7 +282,7 @@ function render() {
 <div class="resource-bar"><div class="your-nation"><i style="background:${n.color}"></i><div><span class="eyebrow">TVÁ FRAKCE</span><strong>${n.name}</strong></div></div><div class="resource"><span>POKLADNA</span><strong>${num(n.money)} ¤</strong></div><div class="resource"><span>BILANCE / S*</span><strong class="${e.net >= 0 ? "positive" : "negative"}">${e.net >= 0 ? "+" : ""}${decimal(e.net)} ¤</strong></div><div class="resource"><span>POPULACE</span><strong>${num(e.population)}</strong></div><div class="resource"><span>ÚZEMÍ</span><strong>${owned(game, game.player).length}<small> / ${playableRegions(game).length}</small></strong></div><div class="time-controls"><span class="game-clock">${clock(game.time)}</span>${button(paused ? "▶ Spustit" : "Ⅱ Pauza", "pause", ended, "play-button")}${[1, 2, 4].map((s) => button(s + "×", "speed:" + s, false, speed === s ? "active" : "")).join("")}</div></div>
 <div class="materials-bar">${(["iron", "coal", "oil", "grain"] as Commodity[]).map((k) => `<div class="commodity commodity-${k}">${sprite(k, "sprite-icon commodity-icon")}<span>${TRADE[k].name.toUpperCase()}</span><strong>${num(n.resources[k])}</strong><small>${k === "grain" ? `+${decimal(e.production.grain)} / −${decimal(e.grainUse)}/s` : k === "oil" ? `+${decimal(e.production.oil)} / −${decimal(e.oilUse)}/s` : `těžba +${decimal(e.production[k])}/s`}</small></div>`).join("")}<div class="fuel-summary"><span>STAV ZÁSOBOVÁNÍ</span><strong class="${e.foodCovered && e.oilCovered ? "positive" : "warning"}">${!e.foodCovered ? "CHYBÍ OBILÍ" : !e.oilCovered ? "CHYBÍ ROPA" : "ZÁSOBENO"}</strong><small>${n.populationLoss > 0 ? `Ztráta populace ${num(n.populationLoss)}` : "Bez ztrát ze zásobování"}</small></div><p>*Bilance před jednorázovým náborem a výstavbou.</p></div>
 <main><section class="map-column">${armyPanel()}<div class="map-heading"><div><span class="eyebrow">OPERAČNÍ MAPA</span><h1>Jantarové pobřeží</h1></div><span class="live-state ${paused ? "is-paused" : ""}">${ended ? "KONEC PARTIE" : paused ? "POZASTAVENO" : "SIMULACE BĚŽÍ"}</span></div>
-<div class="map-surface ${paused ? "paused" : ""}"><div class="map-canvas" style="transform:translate(${mapPanX}px,${mapPanY}px) scale(${mapZoom})">${mapMarkup()}</div><div class="zoom-hint">Kolečko: přiblížení · šipky: posun · ${Math.round(mapZoom * 100)} %</div><div class="map-score"><b>STÁTY</b>${game.nations.filter((f) => owned(game, f.id).length).map((f) => `<span><i style="background:${f.color}"></i>${owned(game, f.id).length} úz. · ⚔ ${num(f.army.infantry)}</span>`).join("")}</div>${ended ? `<div class="result-banner"><h2>${game.winner === game.player ? "Vítězství" : "Tvá frakce byla poražena"}</h2>${button("Nová kampaň", "new", false, "primary")}</div>` : ""}</div><div class="map-footer"><span>Mini jednotky trvale označují státní hranice</span><span>Fronta a ukazatel postupu se posouvají napadenou provincií</span></div><div class="notice" role="status">${esc(notice)}</div>
+<div class="map-surface ${paused ? "paused" : ""}"><div class="map-canvas" style="transform:translate(${mapPanX}px,${mapPanY}px) scale(${mapZoom * BASE_MAP_SCALE})">${mapMarkup()}</div><div class="zoom-hint">Kolečko: přiblížení · šipky: posun · ${Math.round(mapZoom * 100)} %</div><div class="map-score"><b>STÁTY</b>${game.nations.filter((f) => owned(game, f.id).length).map((f) => `<span><i style="background:${f.color}"></i>${owned(game, f.id).length} úz. · ⚔ ${num(f.army.infantry)}</span>`).join("")}</div>${ended ? `<div class="result-banner"><h2>${game.winner === game.player ? "Vítězství" : "Tvá frakce byla poražena"}</h2>${button("Nová kampaň", "new", false, "primary")}</div>` : ""}</div><div class="map-footer"><span>Mini jednotky trvale označují státní hranice</span><span>Fronta a ukazatel postupu se posouvají napadenou provincií</span></div><div class="notice" role="status">${esc(notice)}</div>
 <div class="bottom-grid"><section><div class="section-title">ROVNOVÁHA SIL <span>ÚZEMÍ / ARMÁDA</span></div>${game.nations.map((f) => `<div class="faction-row"><i style="background:${f.color}"></i><span>${f.name}</span><b>${owned(game, f.id).length}</b><small>${num(f.army.infantry)} / ${num(f.army.tanks)}</small></div>`).join("")}</section><section><div class="section-title">HLÁŠENÍ Z FRONTY</div><div class="events">${game.log
     .slice(0, 10)
     .map(
@@ -382,8 +383,8 @@ app.addEventListener("click", (ev) => {
     accumulator = 0;
     armyDraft = null;
     mapZoom = 1;
-    mapPanX = 0;
-    mapPanY = 0;
+    mapPanX = -85;
+    mapPanY = -40;
     notice = "Nová kampaň. Nastav armádu a vyber první důl.";
     save();
   }
