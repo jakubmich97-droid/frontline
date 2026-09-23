@@ -132,6 +132,13 @@ export const TRADE = {
   grain: { name: "Obilí", symbol: "◆", price: 3 },
 } as const;
 export const TRADE_LOT = 25;
+export const MAP_COLS = 8;
+export const MAP_ROWS = 6;
+// Mountain ridges and lakes remove these province connections from pathfinding.
+export const IMPASSABLE_EDGES: ReadonlyArray<readonly [number, number]> = [
+  [10, 18], [18, 26], [26, 34], [34, 42],
+  [19, 20], [20, 28], [27, 28], [28, 29],
+];
 export const FACTIONS = [
   { name: "Jantarová unie", color: "#b6df85", personality: "balanced" },
   { name: "Severní svaz", color: "#7fbece", personality: "cautious" },
@@ -176,6 +183,19 @@ const names = [
   "Větrné město",
   "Východní obilnice",
   "Ocelový mys",
+  "Šedý průsmyk",
+  "Modré jezero",
+  "Borový přístav",
+  "Vysoká pláň",
+  "Jižní železárny",
+  "Černé pobřeží",
+  "Obilný brod",
+  "Ropná hranice",
+  "Skalní město",
+  "Tichý záliv",
+  "Uhelné stráně",
+  "Dolní město",
+  "Koncový mys",
 ];
 const facilities: Facility[] = [
   "city",
@@ -213,6 +233,19 @@ const facilities: Facility[] = [
   "city",
   "grain",
   "city",
+  "iron",
+  "city",
+  "port",
+  "grain",
+  "iron",
+  "coal",
+  "grain",
+  "oil",
+  "city",
+  "port",
+  "coal",
+  "city",
+  "oil",
 ];
 export const strength = (a: Units) => a.infantry + a.tanks * 6;
 export const personnel = (a: Units) => a.infantry + a.tanks * 4;
@@ -227,18 +260,19 @@ export const fortifyCost = (r: Region) => 180 + r.fort * 120;
 export const researchCost = (n: Nation, b: Branch) => 500 + n.tech[b] * 450;
 export function createGame(seed = 42, player = 0): Game {
   const starts = [17, 0, 14, 6, 28, 34],
-    points = Array.from({ length: 6 }, (_, row) =>
-      Array.from({ length: 8 }, (_, col) => [
-        62 +
-          col * 114 +
+    blocked = new Set(IMPASSABLE_EDGES.map(([a, b]) => [a, b].sort((x, y) => x - y).join("-"))),
+    points = Array.from({ length: MAP_ROWS + 1 }, (_, row) =>
+      Array.from({ length: MAP_COLS + 1 }, (_, col) => [
+        48 +
+          col * 113 +
           Math.sin(col * 4 + row * 8) *
-            (col === 0 || col === 7 || row === 0 || row === 5 ? 12 : 18),
-        62 + row * 108 + Math.cos(col * 5 + row * 3) * 15,
+            (col === 0 || col === MAP_COLS || row === 0 || row === MAP_ROWS ? 10 : 16),
+        48 + row * 102 + Math.cos(col * 5 + row * 3) * 13,
       ]),
     );
   const regions = names.map((name, id): Region => {
-    const row = Math.floor(id / 7),
-      col = id % 7,
+    const row = Math.floor(id / MAP_COLS),
+      col = id % MAP_COLS,
       owner = starts.indexOf(id),
       v = [
         points[row][col],
@@ -252,16 +286,16 @@ export function createGame(seed = 42, player = 0): Game {
       owner,
       facility: facilities[id],
       level: owner >= 0 ? 2 : 1,
-      terrain: id % 7 === 3 ? "mountain" : id % 3 === 2 ? "forest" : "plain",
+      terrain: id % 9 === 3 ? "mountain" : id % 3 === 2 ? "forest" : "plain",
       upgrade: null,
       fort: 0,
       fortification: null,
       neighbors: [
-        row > 0 ? id - 7 : -1,
-        row < 4 ? id + 7 : -1,
+        row > 0 ? id - MAP_COLS : -1,
+        row < MAP_ROWS - 1 ? id + MAP_COLS : -1,
         col > 0 ? id - 1 : -1,
-        col < 6 ? id + 1 : -1,
-      ].filter((i) => i >= 0),
+        col < MAP_COLS - 1 ? id + 1 : -1,
+      ].filter((i) => i >= 0 && !blocked.has([id, i].sort((a, b) => a - b).join("-"))),
       x: v.reduce((s, p) => s + p[0], 0) / 4,
       y: v.reduce((s, p) => s + p[1], 0) / 4,
       polygon: v.map((p) => p.join(",")).join(" "),
@@ -976,7 +1010,7 @@ function migrateV2(old: any): Game | null {
     target.research = source.research;
     target.tankQueue = source.tankQueue;
   }
-  event(g, "Mapa rozšířena na 35 provincií. Staré operace byly ukončeny a přibylo obilí.");
+  event(g, "Mapa rozšířena na 48 provincií. Staré operace byly ukončeny a přibylo obilí.");
   return g;
 }
 export function restore(raw: string): Game | null {
@@ -984,9 +1018,14 @@ export function restore(raw: string): Game | null {
     const parsed = JSON.parse(raw),
       g: Game = parsed.version === 1 ? migrate(parsed) : parsed.version === 2 ? migrateV2(parsed) : parsed;
     if (!g || g.version !== 3) return null;
+    // Version 0.6 saves had 35 provinces; preserve them and add the new south-east frontier.
+    if (Array.isArray(g.regions) && g.regions.length === 35) {
+      const expanded = createGame(g.seed, g.player);
+      g.regions.push(...expanded.regions.slice(35));
+    }
     if (g.botAggression === undefined) g.botAggression = 60;
     const id = (x: number) => Number.isInteger(x) && x >= 0 && x < 6,
-      regionId = (x: number) => Number.isInteger(x) && x >= 0 && x < 35;
+      regionId = (x: number) => Number.isInteger(x) && x >= 0 && x < names.length;
     if (
       !id(g.player) ||
       !Number.isInteger(g.time) ||
@@ -995,11 +1034,11 @@ export function restore(raw: string): Game | null {
       !Number.isInteger(g.nextId) ||
       g.nextId < 1 ||
       !Array.isArray(g.regions) ||
-      g.regions.length !== 35 ||
+      g.regions.length !== names.length ||
       !Array.isArray(g.nations) ||
       g.nations.length !== 6 ||
       !Array.isArray(g.operations) ||
-      g.operations.length > 35 ||
+      g.operations.length > names.length ||
       !Array.isArray(g.defeated) ||
       !g.defeated.every(id) ||
       !(g.winner === null || id(g.winner)) ||
@@ -1017,7 +1056,7 @@ export function restore(raw: string): Game | null {
           nonneg(q.total) &&
           q.total > 0 &&
           q.remaining <= q.total);
-    for (let i = 0; i < 35; i++) {
+    for (let i = 0; i < names.length; i++) {
       const r = g.regions[i];
       if (r && r.fort === undefined) r.fort = 0;
       if (r && r.fortification === undefined) r.fortification = null;

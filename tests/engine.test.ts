@@ -18,11 +18,13 @@ import {
   restore,
   tankBlocker,
   defenseStrength,
+  IMPASSABLE_EDGES,
 } from "../src/engine.ts";
 const close = (a: number, b: number) =>
   assert.ok(Math.abs(a - b) < 1e-6, a + " != " + b);
 test("one national army, no provincial unit stores, equal starts", () => {
   const g = createGame();
+  assert.equal(g.regions.length, 48);
   for (const r of g.regions) {
     assert.ok(!("army" in r));
     for (const id of r.neighbors)
@@ -32,6 +34,13 @@ test("one national army, no provincial unit stores, equal starts", () => {
     assert.equal(n.army.infantry, 160);
     assert.equal(capacity(g, n.id), 640);
     assert.equal(owned(g, n.id)[0].facility, "city");
+  }
+});
+test("mountain ridges and lakes are mechanically impassable", () => {
+  const g = createGame();
+  for (const [a, b] of IMPASSABLE_EDGES) {
+    assert.equal(g.regions[a].neighbors.includes(b), false);
+    assert.equal(g.regions[b].neighbors.includes(a), false);
   }
 });
 test("slider recruits gradually for money and demobilizes only idle units", () => {

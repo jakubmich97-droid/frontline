@@ -49,7 +49,10 @@ function setup(saved) {
 }
 test("UI: select target, issue attack, simulate, save and reload", () => {
   const ui = setup();
-  assert.equal(ui.w.document.querySelectorAll("[data-region]").length, 35);
+  assert.equal(ui.w.document.querySelectorAll("[data-region]").length, 48);
+  assert.equal(ui.w.document.querySelectorAll(".map-sprite").length, 48);
+  assert.ok(ui.find(".terrain-features"));
+  assert.ok(ui.find(".zoom-hint"));
   assert.ok(ui.w.document.querySelectorAll(".state-border").length > 20);
   assert.ok(ui.w.document.querySelectorAll(".neutral-garrison").length > 20);
   assert.equal(ui.w.document.querySelectorAll(".map-army").length, 6);

@@ -36,7 +36,7 @@ npm run preview
 - Operace: sledování výprav a ústup se ztrátou 20 % jednotek. Ústup není možný po ztrátě výchozího regionu.
 - Probíhající operace lze posilovat další částí volné armády. Frontu na mapě znázorňují tečky vojáků, bojový efekt a barevné přelévání provincie.
 - 1 / 2 / 4 mění rychlost. Esc zruší cíl. Klávesové zkratky nezasahují do aktivních tlačítek a vstupů.
-- Vítězství vyžaduje všech 35 regionů. Frakce bez území je poražena i s armádou na pochodu.
+- Vítězství vyžaduje všech 48 regionů. Horský hřeben a jezero tvoří nepřekonatelné bariéry; mapa se přibližuje kolečkem myši.
 - Ukládání probíhá každých 15 herních sekund, po rozkazu a při opuštění stránky. Obnovení stránky načte hru v pauze. Skrytí záložky hru pozastaví.
 
 Uložení platí jen pro tento prohlížeč a adresu; smazání dat webu ho odstraní. Nová kampaň nahradí aktuální uloženou partii. Neexistuje offline dohánění času.
@@ -61,7 +61,7 @@ Hráč a boty používají totožnou funkci `issue`. Seedovaný generátor zaji�
 
 ## Co zatím není hotové
 
-- Mapa je fiktivní kontinent s 35 regiony, ne Evropa ani pixelová fronta OpenFrontu.
+- Mapa je fiktivní kontinent se 48 regiony, ilustrovanými komoditami a dvojitou frontovou linií, ne Evropa ani pixelová fronta OpenFrontu.
 - Vizualizace zobrazuje trasy, pohyb výprav a postup dobytí uvnitř regionů, nikoli fyzicky posouvané hranice.
 - Pěchota a tanky jsou abstraktní národní síly. Dělostřelectvo, letectvo, námořní operace a diplomacie jsou další fáze.
 - Vyvážení a délka partie 30–60 minut nejsou garantované; vyžadují hraní a ladění.
