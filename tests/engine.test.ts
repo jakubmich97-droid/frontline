@@ -49,6 +49,11 @@ test("mountains and lakes are separate impassable provinces", () => {
     assert.equal(g.regions.some((r) => r.neighbors.includes(id)), false);
   }
 });
+test("province geometry leaves enough room for labels and units", () => {
+  const g = createGame();
+  assert.ok(Math.abs(g.regions[17].x - g.regions[18].x) > 120);
+  assert.ok(Math.abs(g.regions[17].y - g.regions[25].y) > 120);
+});
 test("ports exist only on the sea coast, never on lakes", () => {
   const g = createGame();
   for (const r of g.regions.filter((r) => r.facility === "port")) {

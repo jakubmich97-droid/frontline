@@ -33,7 +33,7 @@ import {
 } from "./engine.ts";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const KEY = "frontline.save.v3";
-const BASE_MAP_SCALE = 1.22;
+const BASE_MAP_SCALE = 1;
 let game: Game = createGame(),
   selected = 17,
   target: number | null = null,
@@ -47,8 +47,8 @@ let game: Game = createGame(),
   dragging = false,
   armyDraft: number | null = null,
   mapZoom = 1,
-  mapPanX = -85,
-  mapPanY = -40;
+  mapPanX = -150,
+  mapPanY = -70;
 let accumulator = 0,
   last = performance.now(),
   renderElapsed = 0;
@@ -142,7 +142,7 @@ function mapMarkup() {
       return soldierA + soldierB + tank;
     }).join("");
   }).join("");
-  return `<svg class="world-map" viewBox="0 0 1000 720" role="group" aria-label="Strategická mapa, ${playableRegions(game).length} obyvatelných provincií"><defs><pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#24404e" stroke-width=".5"/></pattern>${gradients}</defs><rect width="1000" height="720" fill="url(#grid)"/><text x="28" y="27" class="map-note">JANTAROVÁ EVROPA / KOMODITNÍ MAPA</text><text x="970" y="27" class="map-note">N ↑</text><text x="118" y="360" text-anchor="middle" class="sea-label">ZÁPADNÍ MOŘE</text><text x="500" y="700" text-anchor="middle" class="sea-label">JIŽNÍ MOŘE</text>
+  return `<svg class="world-map" viewBox="0 0 1350 900" role="group" aria-label="Strategická mapa, ${playableRegions(game).length} obyvatelných provincií"><defs><pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#24404e" stroke-width=".5"/></pattern>${gradients}</defs><rect width="1350" height="900" fill="url(#grid)"/><text x="28" y="27" class="map-note">JANTAROVÁ EVROPA / KOMODITNÍ MAPA</text><text x="1320" y="27" class="map-note">N ↑</text><text x="118" y="450" text-anchor="middle" class="sea-label">ZÁPADNÍ MOŘE</text><text x="675" y="875" text-anchor="middle" class="sea-label">JIŽNÍ MOŘE</text>
 ${game.regions
   .map((r) => {
     if (r.geography === "sea") return "";
@@ -383,8 +383,8 @@ app.addEventListener("click", (ev) => {
     accumulator = 0;
     armyDraft = null;
     mapZoom = 1;
-    mapPanX = -85;
-    mapPanY = -40;
+    mapPanX = -150;
+    mapPanY = -70;
     notice = "Nová kampaň. Nastav armádu a vyber první důl.";
     save();
   }

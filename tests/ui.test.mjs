@@ -12,6 +12,10 @@ const bundle = readFileSync(
   ),
   "utf8",
 );
+const styles = readFileSync(
+  new URL(readdirSync(assets).find((n) => n.endsWith(".css")), assets),
+  "utf8",
+);
 function setup(saved) {
   const dom = new JSDOM(
     '<!doctype html><html><body><div id="app"></div></body></html>',
@@ -83,6 +87,10 @@ test("UI: select target, issue attack, simulate, save and reload", () => {
   assert.match(resumed.find(".live-state").textContent, /POZASTAVENO/);
   resumed.dom.window.close();
   ui.dom.window.close();
+});
+test("UI: market sprite survives card background styling", () => {
+  assert.match(styles, /market-icon[^}]*background-image:\s*url\([^)]*frontline-sprites\.webp/);
+  assert.match(styles, /map-canvas[^}]*width:\s*1350px/);
 });
 test("UI: upgrade, research, help, new faction and army slider", () => {
   const ui = setup();
