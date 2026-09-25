@@ -37,7 +37,7 @@ npm run preview
 - Probíhající operace lze posilovat další částí volné armády. Frontu na mapě znázorňují tečky vojáků, bojový efekt a barevné přelévání provincie.
 - Miniaturní pěšáci a dostupné tanky stojí trvale na státních hranicích. Při boji se linie dotyku i ukazatel postupu posouvají dovnitř napadené provincie.
 - Kolečko myši přibližuje mapu a kurzorové šipky ji posouvají bez pohybu celé stránky.
-- Mapa používá plátno 1350 × 900 a zvětšenou geometrii provincií, zatímco text a ikony zůstávají kompaktní; pravý panel operací ukazuje samostatný průběh přípravy nebo bitvy.
+- Mapa používá rozšířené plátno 1350 × 1150 se 64 oblastmi, výraznější geometrií provincií a odpočtem výstavby i opevňování přímo v mapě; pravý panel operací ukazuje samostatný průběh přípravy nebo bitvy.
 - Nástroje nad mapou umožňují klikáním rychle vylepšovat nebo opevňovat vlastní provincie. Pravý panel při běhu simulace zachovává pozici posuvníku.
 - 1 / 2 / 4 mění rychlost. Esc zruší cíl. Klávesové zkratky nezasahují do aktivních tlačítek a vstupů.
 - Vítězství vyžaduje všech 34 obyvatelných provincií. Šest samostatných horských a jezerních oblastí je nepřekonatelných; mapa se přibližuje kolečkem myši.

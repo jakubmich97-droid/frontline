@@ -30,8 +30,8 @@ const close = (a: number, b: number) =>
   assert.ok(Math.abs(a - b) < 1e-6, a + " != " + b);
 test("one national army, no provincial unit stores, equal starts", () => {
   const g = createGame();
-  assert.equal(g.regions.length, 48);
-  assert.equal(playableRegions(g).length, 34);
+  assert.equal(g.regions.length, 64);
+  assert.equal(playableRegions(g).length, 42);
   for (const r of g.regions) {
     assert.ok(!("army" in r));
     for (const id of r.neighbors)
@@ -63,7 +63,7 @@ test("ports exist only on the sea coast, never on lakes", () => {
     assert.ok(PORT_REGIONS.has(r.id));
     const row = Math.floor(r.id / 8), col = r.id % 8;
     const around = [r.id - 8, r.id + 8, r.id - 1, r.id + 1];
-    assert.ok(row === 0 || row === 5 || col === 0 || col === 7 || around.some((id) => SEA_REGIONS.has(id)));
+    assert.ok(row === 0 || row === 7 || col === 0 || col === 7 || around.some((id) => SEA_REGIONS.has(id)));
   }
 });
 test("slider recruits gradually for money and demobilizes only idle units", () => {
@@ -398,7 +398,7 @@ test("five long bot simulations preserve resource and army invariants", () => {
           assert.ok(Number.isFinite(v) && v >= 0);
       }
     }
-    assert.ok(g.regions.filter((r) => r.owner < 0).length < 18);
+    assert.ok(playableRegions(g).filter((r) => r.owner < 0).length < 18);
     assert.ok(g.nations.some((n) => n.resources.iron > 0));
   }
 });

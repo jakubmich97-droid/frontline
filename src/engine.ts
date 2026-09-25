@@ -155,13 +155,13 @@ export const SPECIALIZATIONS: Record<Specialization, { name: string; description
 };
 export const SPECIALIZATION_COST = 450;
 export const MAP_COLS = 8;
-export const MAP_ROWS = 6;
+export const MAP_ROWS = 8;
 // Mountain ridges and lakes remove these province connections from pathfinding.
-export const SEA_REGIONS = new Set([0, 7, 8, 15, 32, 40, 46, 47]);
-export const MOUNTAIN_REGIONS = new Set([12, 20, 28, 36]);
-export const LAKE_REGIONS = new Set([21, 29]);
+export const SEA_REGIONS = new Set([0, 7, 8, 15, 32, 40, 46, 47, 48, 55, 56, 63]);
+export const MOUNTAIN_REGIONS = new Set([12, 20, 28, 36, 52, 60]);
+export const LAKE_REGIONS = new Set([21, 29, 53, 61]);
 export const BLOCKED_REGIONS = new Set([...MOUNTAIN_REGIONS, ...LAKE_REGIONS]);
-export const PORT_REGIONS = new Set([9, 23, 39, 45]);
+export const PORT_REGIONS = new Set([9, 23, 39, 45, 49, 62]);
 export const FACTIONS = [
   { name: "Jantarová unie", color: "#b6df85", personality: "balanced" },
   { name: "Severní svaz", color: "#7fbece", personality: "cautious" },
@@ -219,6 +219,22 @@ const names = [
   "Uhelné stráně",
   "Dolní město",
   "Koncový mys",
+  "Azurové pobřeží",
+  "Olivový přístav",
+  "Stříbrné údolí",
+  "Vinařská nížina",
+  "Kamenný masiv",
+  "Smaragdové jezero",
+  "Jižní obilnice",
+  "Korálový mys",
+  "Ostrovní moře",
+  "Písečné pláně",
+  "Měděné město",
+  "Sluneční pole",
+  "Balkánský hřeben",
+  "Modrá laguna",
+  "Levantský přístav",
+  "Východní moře",
 ];
 const facilities: Facility[] = [
   "city",
@@ -269,6 +285,22 @@ const facilities: Facility[] = [
   "coal",
   "city",
   "oil",
+  "coal",
+  "port",
+  "iron",
+  "grain",
+  "coal",
+  "oil",
+  "grain",
+  "city",
+  "grain",
+  "oil",
+  "city",
+  "grain",
+  "iron",
+  "oil",
+  "port",
+  "coal",
 ];
 export const strength = (a: Units) => a.infantry + a.tanks * 6;
 export const personnel = (a: Units) => a.infantry + a.tanks * 4;
@@ -285,7 +317,7 @@ export const fortifyCost = (r: Region) => 180 + r.fort * 120;
 export const researchCost = (n: Nation, b: Branch) => 500 + n.tech[b] * 450;
 export function createGame(seed = 42, player = 0): Game {
   const starts = [17, 2, 6, 14, 33, 44],
-    rowShift = [12, -8, -20, -8, 8, 22, 4],
+    rowShift = [12, -8, -20, -8, 8, 22, 4, -16, 10],
     points = Array.from({ length: MAP_ROWS + 1 }, (_, row) =>
       Array.from({ length: MAP_COLS + 1 }, (_, col) => [
         82 + col * 145 + rowShift[row] + Math.sin(col * 4 + row * 8) * 6,
@@ -305,7 +337,7 @@ export function createGame(seed = 42, player = 0): Game {
       ];
     return {
       id,
-      name: geography === "mountain" ? ["Severní Karpaty", "Vysoké Alpy", "Dinárské hory", "Jižní hřeben"][Array.from(MOUNTAIN_REGIONS).indexOf(id)] : geography === "lake" ? (id === 21 ? "Velké jezero" : "Jezerní pánev") : name,
+      name: geography === "mountain" ? ["Severní Karpaty", "Vysoké Alpy", "Dinárské hory", "Jižní hřeben", "Kamenný masiv", "Balkánský hřeben"][Array.from(MOUNTAIN_REGIONS).indexOf(id)] : geography === "lake" ? ({21: "Velké jezero", 29: "Jezerní pánev", 53: "Smaragdové jezero", 61: "Modrá laguna"}[id] || "Jezero") : name,
       owner,
       facility: starts.includes(id) ? "city" : PORT_REGIONS.has(id) ? "port" : facilities[id] === "port" ? "coal" : facilities[id],
       geography,
@@ -1110,10 +1142,10 @@ export function restore(raw: string): Game | null {
       g: Game = parsed.version === 1 ? migrate(parsed) : parsed.version === 2 ? migrateV2(parsed) : parsed;
     if (!g || ![3, 4].includes(g.version as number)) return null;
     g.version = 4;
-    // Version 0.6 saves had 35 provinces; preserve them and add the new south-east frontier.
-    if (Array.isArray(g.regions) && g.regions.length === 35) {
+    // Older saves keep their provinces; newly added southern regions start in their default state.
+    if (Array.isArray(g.regions) && g.regions.length >= 35 && g.regions.length < names.length) {
       const expanded = createGame(g.seed, g.player);
-      g.regions.push(...expanded.regions.slice(35));
+      g.regions.push(...expanded.regions.slice(g.regions.length));
     }
     if (g.botAggression === undefined) g.botAggression = 60;
     if (!g.truces || typeof g.truces !== "object") g.truces = {};

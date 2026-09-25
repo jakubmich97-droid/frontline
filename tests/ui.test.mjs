@@ -53,9 +53,9 @@ function setup(saved) {
 }
 test("UI: select target, issue attack, simulate, save and reload", () => {
   const ui = setup();
-  assert.equal(ui.w.document.querySelectorAll("[data-region]").length, 34);
-  assert.equal(ui.w.document.querySelectorAll(".map-sprite").length, 34);
-  assert.equal(ui.w.document.querySelectorAll(".obstacle-province").length, 6);
+  assert.equal(ui.w.document.querySelectorAll("[data-region]").length, 42);
+  assert.equal(ui.w.document.querySelectorAll(".map-sprite").length, 42);
+  assert.equal(ui.w.document.querySelectorAll(".obstacle-province").length, 10);
   assert.ok(ui.w.document.querySelectorAll(".border-unit").length > 10);
   assert.ok(ui.find(".zoom-hint"));
   assert.ok(ui.w.document.querySelectorAll(".state-border").length > 20);
@@ -112,6 +112,7 @@ test("UI: map tools upgrade and fortify a clicked province", () => {
   ui.click('[data-action="mapmode:fortify"]');
   ui.click('[data-region="17"]');
   assert.match(ui.find(".fort-card").textContent, /Stavba/);
+  assert.match(ui.find(".fort-timer").textContent, /s/);
   ui.dom.window.close();
 });
 test("UI: upgrade, research, help, new faction and army slider", () => {

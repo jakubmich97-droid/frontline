@@ -571,16 +571,17 @@ h3 {
 }
 .map-surface {
   position: relative;
-  border: 1px solid #2b3c46;
-  border-radius: 8px;
-  background: radial-gradient(ellipse at 50% 40%, #162e3c, #0e202c 80%);
+  border: 1px solid #42616b;
+  border-radius: 12px;
+  background: radial-gradient(ellipse at 50% 35%, #245061, #0d2635 82%);
+  box-shadow: inset 0 0 70px #020b1099, 0 12px 32px #0006;
   overflow: hidden;
   touch-action: none;
   cursor: zoom-in;
 }
 .map-canvas {
   width: 1350px;
-  height: 900px;
+  height: 1150px;
   transform-origin: 0 0;
   will-change: transform;
 }
@@ -620,13 +621,29 @@ h3 {
   border-color: var(--accent);
   background: var(--accent);
 }
+.map-tools .tool-divider {
+  width: 1px;
+  margin: 2px 1px;
+  background: #49606a;
+}
+.map-tools .zoom-button {
+  width: 29px;
+  padding-inline: 0;
+  font-size: 15px;
+}
+.map-tools .zoom-reset {
+  min-width: 48px;
+  padding-inline: 5px;
+  color: #bcd0d2;
+  font-family: ui-monospace, monospace;
+}
 .world-map {
   display: block;
   width: 1350px;
-  height: 900px;
+  height: 1150px;
   max-height: none;
 }
-.map-sprite { width: 28px; height: 28px; }
+.map-sprite { width: 30px; height: 30px; }
 .terrain-sprite { width: 100%; height: 100%; opacity: .92; }
 .map-unit { overflow: visible; pointer-events: none; }
 .unit-token {
@@ -723,7 +740,7 @@ h3 {
   outline: none;
 }
 .region polygon {
-  stroke-width: 1.1;
+  stroke-width: 1.35;
   transition: fill-opacity 0.2s;
   filter: url(#land-shadow);
 }
@@ -746,8 +763,26 @@ h3 {
   filter: drop-shadow(0 2px 4px #000b);
 }
 .region:hover polygon {
-  fill-opacity: 0.5;
+  fill-opacity: 0.62;
 }
+.region-name {
+  fill: #f4f5ed;
+  font: 700 11px ui-sans-serif, sans-serif;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: #07131b;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.map-timer {
+  text-anchor: middle;
+  font: 800 9px ui-monospace, monospace;
+  paint-order: stroke;
+  stroke: #07131b;
+  stroke-width: 3px;
+}
+.upgrade-timer { fill: #d8efaf; }
+.fort-timer { fill: #ffd39a; }
 .region.selected > polygon:first-child {
   stroke: #e1f4c3;
   stroke-width: 3;
@@ -767,9 +802,9 @@ h3 {
   text-anchor: middle;
 }
 .region-name {
-  font-size: 10px;
-  font-weight: 600;
-  fill: #e0e6df;
+  font-size: 11px;
+  font-weight: 700;
+  fill: #f4f5ed;
 }
 .army-count {
   font:
@@ -1287,7 +1322,7 @@ progress::-webkit-progress-value {
     padding: 30px;
   }
   .region-name {
-    font-size: 9px;
+    font-size: 11px;
   }
   .resource-bar {
     gap: 42px;
@@ -1406,7 +1441,7 @@ progress::-webkit-progress-value {
   }
   .world-map {
     width: 1350px;
-    height: 900px;
+    height: 1150px;
     min-height: 0;
     max-height: none;
   }
