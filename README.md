@@ -77,3 +77,12 @@ Hráč a boty používají totožnou funkci `issue`. Seedovaný generátor zaji�
 ## Nasazení a soukromí
 
 `npm run build` vytvoří statické `dist/`. Projekt lze nasadit jako Vite aplikaci, např. na Vercel (build `npm run build`, output `dist`). Nasazení není automaticky součástí této verze. Veřejný repozitář ani obtížně uhodnutelný odkaz nejsou privátní přístup; pro soukromou hru používej localhost nebo skutečnou ochranu hostingu. Nevkládej do klientského kódu tajné klíče.
+## Novinky ve verzi 0.8
+
+- náhled poměru sil a odhad rizika před zahájením útoku,
+- tři bojové postoje: opatrný, vyvážený a průlomový,
+- přehled podílu armády přiděleného jednotlivým frontám,
+- zásobovací síť vedená od hlavního města; odříznuté provincie vyrábějí jen 45 %,
+- civilní, průmyslová a vojenská specializace provincií,
+- dohody o neútočení a lehké hospodářské události,
+- nižší frekvence kompletního překreslování UI pro plynulejší mapu.

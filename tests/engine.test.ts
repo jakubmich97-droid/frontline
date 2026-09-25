@@ -18,6 +18,9 @@ import {
   restore,
   tankBlocker,
   defenseStrength,
+  attackPreview,
+  isSupplied,
+  truceRemaining,
   BLOCKED_REGIONS,
   PORT_REGIONS,
   SEA_REGIONS,
@@ -127,11 +130,11 @@ test("mines produce separate national stocks, enemies do not receive them", () =
   g.regions[13].owner = 0;
   g.regions[22].owner = 0;
   tick(g, false);
-  close(g.nations[0].resources.iron, 0.8);
-  close(g.nations[0].resources.coal, 0.8);
+  close(g.nations[0].resources.iron, 0.36);
+  close(g.nations[0].resources.coal, 0.36);
   assert.equal(g.nations[1].resources.iron, 0);
   g.regions[13].level = 2;
-  close(production(g, 0).iron, 1.6);
+  close(production(g, 0).iron, 0.72);
 });
 test("tank order needs BOTH materials and money; pays once and finishes once", () => {
   const g = createGame(),
@@ -295,6 +298,29 @@ test("reinforcements reserve free national units in an existing attack", () => {
   assert.ok(o.army.infantry > before);
   close(available(g, 0).infantry + deployed(g, 0).infantry, g.nations[0].army.infantry);
 });
+test("combat preview and stances change risk and losses", () => {
+  const g = createGame();
+  const cautious = attackPreview(g, 0, 17, 16, 60, "cautious");
+  const assault = attackPreview(g, 0, 17, 16, 60, "assault");
+  assert.ok(assault.attack > cautious.attack);
+  assert.ok(assault.chance >= cautious.chance);
+  assert.ok(issue(g, 0, { type: "deploy", from: 17, to: 16, percent: 60, stance: "assault" }).ok);
+  assert.equal(g.operations[0].stance, "assault");
+  assert.ok(issue(g, 0, { type: "stance", operation: g.operations[0].id, stance: "cautious" }).ok);
+  assert.equal(g.operations[0].stance, "cautious");
+});
+test("supply network, specialization and diplomacy affect play", () => {
+  const g = createGame(), n = g.nations[0];
+  g.regions[13].owner = 0;
+  assert.equal(isSupplied(g, 13), false);
+  n.money = 1000;
+  assert.ok(issue(g, 0, { type: "specialize", region: 17, specialization: "civil" }).ok);
+  assert.equal(g.regions[17].specialization, "civil");
+  assert.ok(issue(g, 0, { type: "pact", target: 3 }).ok);
+  assert.ok(truceRemaining(g, 0, 3) > 0);
+  g.regions[16].owner = 3;
+  assert.equal(issue(g, 0, { type: "deploy", from: 17, to: 16, percent: 60 }).ok, false);
+});
 test("legacy migration pools garrisons and expeditions without loss; refunds queues", () => {
   const base = createGame(),
     legacy: any = { ...base, version: 1 };
@@ -311,7 +337,7 @@ test("legacy migration pools garrisons and expeditions without loss; refunds que
   legacy.operations = [{ owner: 0, army: { infantry: 20, tanks: 1 } }];
   const migrated = restore(JSON.stringify(legacy));
   assert.ok(migrated);
-  assert.equal(migrated.version, 3);
+  assert.equal(migrated.version, 4);
   assert.equal(migrated.nations[0].army.infantry, 145);
   assert.equal(migrated.nations[0].army.tanks, 8);
   assert.equal(migrated.nations[0].money, 1000);
